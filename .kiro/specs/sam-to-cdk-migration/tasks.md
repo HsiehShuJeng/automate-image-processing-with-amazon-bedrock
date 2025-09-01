@@ -25,7 +25,7 @@
 
 ## Storage Layer Implementation
 
-- [ ] 4. Implement Storage Stack with S3 and DynamoDB
+- [x] 4. Implement Storage Stack with S3 and DynamoDB
   - Create StorageStack class extending Stack
   - Implement S3 bucket with encryption, versioning, and security best practices
   - Create ImagesTable DynamoDB table with stream enabled (NEW_IMAGE view) and encryption
@@ -34,7 +34,7 @@
   - Export storage resources through StorageStackOutputs interface
   - _Requirements: Storage Layer, S3 Bucket, DynamoDB Tables_
 
-- [ ] 5. Add comprehensive testing for Storage Stack
+- [x] 5. Add comprehensive testing for Storage Stack
   - Write unit tests for StorageStack construct creation
   - Test S3 bucket configuration and security settings
   - Test DynamoDB table creation with proper stream configuration
