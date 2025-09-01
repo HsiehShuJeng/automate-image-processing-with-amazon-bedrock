@@ -529,7 +529,7 @@ const statesExecutionRole = new iam.Role(this, 'StatesExecutionRole', {
         new iam.PolicyStatement({
           effect: iam.Effect.ALLOW,
           actions: ['bedrock:InvokeModel'],
-          resources: [`arn:aws:bedrock:${cdk.Stack.of(this).region}::foundation-model/amazon.titan-image-generator-v1`]
+          resources: ['arn:aws:bedrock:us-east-1::foundation-model/amazon.titan-image-generator-v1']
         })
       ]
     }),
@@ -549,6 +549,26 @@ const statesExecutionRole = new iam.Role(this, 'StatesExecutionRole', {
     })
   }
 });
+```
+
+### Cross-Region Bedrock Configuration
+
+```typescript
+// Step Functions state machine with cross-region Bedrock call
+const bedrockInvokeState = {
+  Type: 'Task',
+  Resource: 'arn:aws:states:::bedrock:invokeModel',
+  Parameters: {
+    ModelId: 'arn:aws:bedrock:us-east-1::foundation-model/amazon.titan-image-generator-v1',
+    Input: {
+      'S3Uri.$': 'States.Format(\'s3://{}/{}/{}.json\', $.S3Bucket, $.InputS3Prefix, States.ArrayGetItem(States.StringSplit($.Image.ImageName, \'.\'), 0))'
+    },
+    Output: {
+      'S3Uri.$': 'States.Format(\'s3://{}/{}/{}.json\', $.S3Bucket, $.OutputS3Prefix, States.ArrayGetItem(States.StringSplit($.Image.ImageName, \'.\'), 0))'
+    },
+    ContentType: 'application/json'
+  }
+};
 ```
 
 ### DynamoDB Optimization

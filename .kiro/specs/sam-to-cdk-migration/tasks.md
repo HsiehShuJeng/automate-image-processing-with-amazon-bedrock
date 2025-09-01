@@ -131,7 +131,7 @@
 - [ ] 15. Implement Step Functions state machine definition
   - Create state machine JSON definition with all required states
   - Configure distributed map state for concurrent image processing with MaxConcurrency parameter
-  - Implement Bedrock InvokeModel task state with region-specific model ARN
+  - Implement Bedrock InvokeModel task state with hardcoded us-east-1 model ARN
   - Add error handling states and retry configurations
   - Configure SNS notification states for completion/failure
   - Set up DynamoDB integration states for status tracking

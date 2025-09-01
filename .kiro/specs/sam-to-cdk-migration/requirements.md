@@ -154,3 +154,8 @@ bin/
 4. Perform end-to-end testing
 5. Update UI configuration
 6. Deploy to production environment
+
+## Target Deployment Region
+- **Primary Region**: Asia Pacific (Tokyo) - ap-northeast-1
+- **Cross-Region Service**: Amazon Bedrock in US East (N. Virginia) - us-east-1
+- **Rationale**: Full service availability in Tokyo with acceptable cross-region latency for Bedrock calls
