@@ -52,6 +52,13 @@ describe('AuthStack', () => {
       });
     });
 
+    test('sets correct deletion policy for development', () => {
+      template.hasResource('AWS::Cognito::UserPool', {
+        DeletionPolicy: 'Delete',
+        UpdateReplacePolicy: 'Delete'
+      });
+    });
+
     test('creates exactly one User Pool', () => {
       template.resourceCountIs('AWS::Cognito::UserPool', 1);
     });
@@ -87,11 +94,66 @@ describe('AuthStack', () => {
     });
   });
 
+  describe('Security and Compliance Validation', () => {
+    test('enforces strong password requirements', () => {
+      template.hasResourceProperties('AWS::Cognito::UserPool', {
+        Policies: {
+          PasswordPolicy: {
+            MinimumLength: Match.anyValue(),
+            RequireLowercase: true,
+            RequireNumbers: true,
+            RequireSymbols: true,
+            RequireUppercase: true
+          }
+        }
+      });
+    });
+
+    test('requires admin-only user creation for security', () => {
+      template.hasResourceProperties('AWS::Cognito::UserPool', {
+        AdminCreateUserConfig: {
+          AllowAdminCreateUserOnly: true
+        }
+      });
+    });
+
+    test('enables email verification for account security', () => {
+      template.hasResourceProperties('AWS::Cognito::UserPool', {
+        AutoVerifiedAttributes: Match.arrayWith(['email'])
+      });
+    });
+  });
+
+  describe('OAuth and Authentication Flow Validation', () => {
+    test('enables SRP authentication flow', () => {
+      template.hasResourceProperties('AWS::Cognito::UserPoolClient', {
+        ExplicitAuthFlows: Match.arrayWith(['ALLOW_USER_SRP_AUTH'])
+      });
+    });
+
+    test('enables password authentication flow', () => {
+      template.hasResourceProperties('AWS::Cognito::UserPoolClient', {
+        ExplicitAuthFlows: Match.arrayWith(['ALLOW_USER_PASSWORD_AUTH'])
+      });
+    });
+
+    test('enables refresh token flow', () => {
+      template.hasResourceProperties('AWS::Cognito::UserPoolClient', {
+        ExplicitAuthFlows: Match.arrayWith(['ALLOW_REFRESH_TOKEN_AUTH'])
+      });
+    });
+  });
+
   describe('Resource Count Validation', () => {
     test('creates expected total resource count', () => {
       // User Pool + User Pool Client = 2 main resources
       const resourceCount = Object.keys(template.toJSON().Resources).length;
       expect(resourceCount).toBeGreaterThanOrEqual(2);
+    });
+
+    test('does not create unexpected resources', () => {
+      // Should only have Cognito resources, no API Gateway authorizer
+      template.resourceCountIs('AWS::ApiGateway::Authorizer', 0);
     });
   });
 
@@ -109,6 +171,23 @@ describe('AuthStack', () => {
 
     test('user pool client output has correct properties', () => {
       expect(stack.outputs.userPoolClient.userPoolClientId).toBeDefined();
+    });
+
+    test('user pool client secret is accessible', () => {
+      // Verify the client secret can be accessed (though it's a token in tests)
+      expect(stack.outputs.userPoolClient.userPoolClientSecret).toBeDefined();
+    });
+  });
+
+  describe('Integration Readiness Validation', () => {
+    test('user pool is ready for API Gateway authorizer integration', () => {
+      expect(stack.outputs.userPool.userPoolArn).toBeDefined();
+      expect(stack.outputs.userPool.userPoolId).toBeDefined();
+    });
+
+    test('user pool client is ready for application integration', () => {
+      expect(stack.outputs.userPoolClient.userPoolClientId).toBeDefined();
+      expect(stack.outputs.userPoolClient.userPoolClientSecret).toBeDefined();
     });
   });
 });
