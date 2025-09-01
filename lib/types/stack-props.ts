@@ -54,7 +54,7 @@ export interface AuthStackOutputs {
  * Props for API Stack.
  */
 export interface ApiStackProps extends BaseStackProps {
-  readonly authorizer: apigateway.CognitoUserPoolsAuthorizer;
+  readonly userPool: cognito.UserPool;
   readonly imagesTable: dynamodb.Table;
 }
 
