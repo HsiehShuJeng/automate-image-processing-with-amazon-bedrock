@@ -2,7 +2,7 @@
 
 ## Project Setup and Foundation
 
-- [ ] 1. Initialize CDK TypeScript project structure
+- [x] 1. Initialize CDK TypeScript project structure
   - Create CDK app using `cdk init app --language typescript`
   - Install required dependencies including AWS Solutions Constructs and GenAI CDK Constructs
   - Configure tsconfig.json and package.json for the project
