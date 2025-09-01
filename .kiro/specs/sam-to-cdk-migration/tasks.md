@@ -44,7 +44,7 @@
 
 ## Authentication and Authorization
 
-- [ ] 6. Implement Authentication Stack with Cognito
+- [x] 6. Implement Authentication Stack with Cognito
   - Create AuthStack class with Cognito User Pool and User Pool Client
   - Configure password policies and user pool settings
   - Implement Cognito User Pool Client with appropriate OAuth settings

@@ -47,6 +47,7 @@ export interface AuthStackOutputs {
   readonly userPool: cognito.UserPool;
   readonly userPoolClient: cognito.UserPoolClient;
   readonly authorizer: apigateway.CognitoUserPoolsAuthorizer;
+  readonly userPoolClientSecret?: string; // Available via userPoolClient.userPoolClientSecret
 }
 
 /**
