@@ -1,0 +1,545 @@
+// Jest Snapshot v1, https://goo.gl/fbAQLP
+
+exports[`ApiStack CloudFormation Template matches expected CloudFormation template structure 1`] = `
+{
+  "Metadata": {
+    "cdk_nag": {
+      "rules_to_suppress": [
+        {
+          "id": "AwsSolutions-IAM4",
+          "reason": "API Stack: AWS managed policies are acceptable for this use case",
+        },
+        {
+          "id": "AwsSolutions-IAM5",
+          "reason": "API Stack: Wildcard permissions required for cross-service integrations",
+        },
+        {
+          "id": "AwsSolutions-APIG-1",
+          "reason": "Image Processing: CloudWatch logging configured at appropriate level",
+        },
+        {
+          "id": "AwsSolutions-APIG-2",
+          "reason": "Image Processing: Request validation implemented where required",
+        },
+      ],
+    },
+  },
+  "Outputs": {
+    "ApiEndpoint4F160690": {
+      "Value": {
+        "Fn::Join": [
+          "",
+          [
+            "https://",
+            {
+              "Ref": "ApiF70053CD",
+            },
+            ".execute-api.ap-northeast-1.",
+            {
+              "Ref": "AWS::URLSuffix",
+            },
+            "/",
+            {
+              "Ref": "ApiDeploymentStageprod3EB9684E",
+            },
+            "/",
+          ],
+        ],
+      },
+    },
+  },
+  "Parameters": {
+    "BootstrapVersion": {
+      "Default": "/cdk-bootstrap/hnb659fds/version",
+      "Description": "Version of the CDK Bootstrap resources in this environment, automatically retrieved from SSM Parameter Store. [cdk:skip]",
+      "Type": "AWS::SSM::Parameter::Value<String>",
+    },
+  },
+  "Resources": {
+    "APIGatewayDynamoDBRole6D0A0EB1": {
+      "Properties": {
+        "AssumeRolePolicyDocument": {
+          "Statement": [
+            {
+              "Action": "sts:AssumeRole",
+              "Effect": "Allow",
+              "Principal": {
+                "Service": "apigateway.amazonaws.com",
+              },
+            },
+          ],
+          "Version": "2012-10-17",
+        },
+        "Policies": [
+          {
+            "PolicyDocument": {
+              "Statement": [
+                {
+                  "Action": "dynamodb:PutItem",
+                  "Effect": "Allow",
+                  "Resource": {
+                    "Fn::ImportValue": "TestStorageStack:ExportsOutputFnGetAttImagesTable39278AD9Arn86D93802",
+                  },
+                },
+              ],
+              "Version": "2012-10-17",
+            },
+            "PolicyName": "DynamoDBPolicy",
+          },
+        ],
+      },
+      "Type": "AWS::IAM::Role",
+    },
+    "APIGatewayRekognitionRole3ED933CC": {
+      "Properties": {
+        "AssumeRolePolicyDocument": {
+          "Statement": [
+            {
+              "Action": "sts:AssumeRole",
+              "Effect": "Allow",
+              "Principal": {
+                "Service": "apigateway.amazonaws.com",
+              },
+            },
+          ],
+          "Version": "2012-10-17",
+        },
+        "Policies": [
+          {
+            "PolicyDocument": {
+              "Statement": [
+                {
+                  "Action": "rekognition:DetectLabels",
+                  "Effect": "Allow",
+                  "Resource": "*",
+                },
+              ],
+              "Version": "2012-10-17",
+            },
+            "PolicyName": "RekognitionPolicy",
+          },
+        ],
+      },
+      "Type": "AWS::IAM::Role",
+    },
+    "ApiAccountA18C9B29": {
+      "DeletionPolicy": "Retain",
+      "DependsOn": [
+        "ApiF70053CD",
+      ],
+      "Properties": {
+        "CloudWatchRoleArn": {
+          "Fn::GetAtt": [
+            "ApiCloudWatchRole73EC6FC4",
+            "Arn",
+          ],
+        },
+      },
+      "Type": "AWS::ApiGateway::Account",
+      "UpdateReplacePolicy": "Retain",
+    },
+    "ApiCloudWatchRole73EC6FC4": {
+      "DeletionPolicy": "Retain",
+      "Properties": {
+        "AssumeRolePolicyDocument": {
+          "Statement": [
+            {
+              "Action": "sts:AssumeRole",
+              "Effect": "Allow",
+              "Principal": {
+                "Service": "apigateway.amazonaws.com",
+              },
+            },
+          ],
+          "Version": "2012-10-17",
+        },
+        "ManagedPolicyArns": [
+          {
+            "Fn::Join": [
+              "",
+              [
+                "arn:",
+                {
+                  "Ref": "AWS::Partition",
+                },
+                ":iam::aws:policy/service-role/AmazonAPIGatewayPushToCloudWatchLogs",
+              ],
+            ],
+          },
+        ],
+      },
+      "Type": "AWS::IAM::Role",
+      "UpdateReplacePolicy": "Retain",
+    },
+    "ApiDeploymentB17BE62Dd37f97cc4e5a77232ffd2b49e6ed2599": {
+      "DependsOn": [
+        "ApidetectLabelsOPTIONSBE732498",
+        "ApidetectLabelsPOST1ABEB4B2",
+        "ApidetectLabels9ADDF430",
+        "ApiimagesOPTIONSC6EBB2FA",
+        "ApiimagesPOST18B7C7FE",
+        "ApiimagesAAD105D5",
+        "ApiOPTIONS5886EA5D",
+      ],
+      "Metadata": {
+        "aws:cdk:do-not-refactor": true,
+      },
+      "Properties": {
+        "Description": "Image Processing API with direct service integrations",
+        "RestApiId": {
+          "Ref": "ApiF70053CD",
+        },
+      },
+      "Type": "AWS::ApiGateway::Deployment",
+    },
+    "ApiDeploymentStageprod3EB9684E": {
+      "DependsOn": [
+        "ApiAccountA18C9B29",
+      ],
+      "Properties": {
+        "DeploymentId": {
+          "Ref": "ApiDeploymentB17BE62Dd37f97cc4e5a77232ffd2b49e6ed2599",
+        },
+        "RestApiId": {
+          "Ref": "ApiF70053CD",
+        },
+        "StageName": "prod",
+      },
+      "Type": "AWS::ApiGateway::Stage",
+    },
+    "ApiF70053CD": {
+      "Properties": {
+        "Description": "Image Processing API with direct service integrations",
+        "Name": "api-image",
+      },
+      "Type": "AWS::ApiGateway::RestApi",
+    },
+    "ApiOPTIONS5886EA5D": {
+      "Properties": {
+        "ApiKeyRequired": false,
+        "AuthorizationType": "NONE",
+        "HttpMethod": "OPTIONS",
+        "Integration": {
+          "IntegrationResponses": [
+            {
+              "ResponseParameters": {
+                "method.response.header.Access-Control-Allow-Headers": "'Content-Type,X-Amz-Date,Authorization,X-Api-Key'",
+                "method.response.header.Access-Control-Allow-Methods": "'OPTIONS,GET,PUT,POST,DELETE,PATCH,HEAD'",
+                "method.response.header.Access-Control-Allow-Origin": "'*'",
+              },
+              "StatusCode": "204",
+            },
+          ],
+          "RequestTemplates": {
+            "application/json": "{ statusCode: 200 }",
+          },
+          "Type": "MOCK",
+        },
+        "MethodResponses": [
+          {
+            "ResponseParameters": {
+              "method.response.header.Access-Control-Allow-Headers": true,
+              "method.response.header.Access-Control-Allow-Methods": true,
+              "method.response.header.Access-Control-Allow-Origin": true,
+            },
+            "StatusCode": "204",
+          },
+        ],
+        "ResourceId": {
+          "Fn::GetAtt": [
+            "ApiF70053CD",
+            "RootResourceId",
+          ],
+        },
+        "RestApiId": {
+          "Ref": "ApiF70053CD",
+        },
+      },
+      "Type": "AWS::ApiGateway::Method",
+    },
+    "ApidetectLabels9ADDF430": {
+      "Properties": {
+        "ParentId": {
+          "Fn::GetAtt": [
+            "ApiF70053CD",
+            "RootResourceId",
+          ],
+        },
+        "PathPart": "detectLabels",
+        "RestApiId": {
+          "Ref": "ApiF70053CD",
+        },
+      },
+      "Type": "AWS::ApiGateway::Resource",
+    },
+    "ApidetectLabelsOPTIONSBE732498": {
+      "Properties": {
+        "ApiKeyRequired": false,
+        "AuthorizationType": "NONE",
+        "HttpMethod": "OPTIONS",
+        "Integration": {
+          "IntegrationResponses": [
+            {
+              "ResponseParameters": {
+                "method.response.header.Access-Control-Allow-Headers": "'Content-Type,X-Amz-Date,Authorization,X-Api-Key'",
+                "method.response.header.Access-Control-Allow-Methods": "'OPTIONS,GET,PUT,POST,DELETE,PATCH,HEAD'",
+                "method.response.header.Access-Control-Allow-Origin": "'*'",
+              },
+              "StatusCode": "204",
+            },
+          ],
+          "RequestTemplates": {
+            "application/json": "{ statusCode: 200 }",
+          },
+          "Type": "MOCK",
+        },
+        "MethodResponses": [
+          {
+            "ResponseParameters": {
+              "method.response.header.Access-Control-Allow-Headers": true,
+              "method.response.header.Access-Control-Allow-Methods": true,
+              "method.response.header.Access-Control-Allow-Origin": true,
+            },
+            "StatusCode": "204",
+          },
+        ],
+        "ResourceId": {
+          "Ref": "ApidetectLabels9ADDF430",
+        },
+        "RestApiId": {
+          "Ref": "ApiF70053CD",
+        },
+      },
+      "Type": "AWS::ApiGateway::Method",
+    },
+    "ApidetectLabelsPOST1ABEB4B2": {
+      "Properties": {
+        "AuthorizationType": "COGNITO_USER_POOLS",
+        "AuthorizerId": {
+          "Ref": "CognitoAuthorizerF3215DBC",
+        },
+        "HttpMethod": "POST",
+        "Integration": {
+          "Credentials": {
+            "Fn::GetAtt": [
+              "APIGatewayRekognitionRole3ED933CC",
+              "Arn",
+            ],
+          },
+          "IntegrationHttpMethod": "POST",
+          "IntegrationResponses": [
+            {
+              "StatusCode": "200",
+            },
+          ],
+          "RequestParameters": {
+            "integration.request.header.Content-Type": "'application/x-amz-json-1.1'",
+            "integration.request.header.X-Amz-Target": "'RekognitionService.DetectLabels'",
+          },
+          "Type": "AWS",
+          "Uri": {
+            "Fn::Join": [
+              "",
+              [
+                "arn:",
+                {
+                  "Ref": "AWS::Partition",
+                },
+                ":apigateway:ap-northeast-1:rekognition:action/DetectLabels",
+              ],
+            ],
+          },
+        },
+        "MethodResponses": [
+          {
+            "StatusCode": "200",
+          },
+        ],
+        "ResourceId": {
+          "Ref": "ApidetectLabels9ADDF430",
+        },
+        "RestApiId": {
+          "Ref": "ApiF70053CD",
+        },
+      },
+      "Type": "AWS::ApiGateway::Method",
+    },
+    "ApiimagesAAD105D5": {
+      "Properties": {
+        "ParentId": {
+          "Fn::GetAtt": [
+            "ApiF70053CD",
+            "RootResourceId",
+          ],
+        },
+        "PathPart": "images",
+        "RestApiId": {
+          "Ref": "ApiF70053CD",
+        },
+      },
+      "Type": "AWS::ApiGateway::Resource",
+    },
+    "ApiimagesOPTIONSC6EBB2FA": {
+      "Properties": {
+        "ApiKeyRequired": false,
+        "AuthorizationType": "NONE",
+        "HttpMethod": "OPTIONS",
+        "Integration": {
+          "IntegrationResponses": [
+            {
+              "ResponseParameters": {
+                "method.response.header.Access-Control-Allow-Headers": "'Content-Type,X-Amz-Date,Authorization,X-Api-Key'",
+                "method.response.header.Access-Control-Allow-Methods": "'OPTIONS,GET,PUT,POST,DELETE,PATCH,HEAD'",
+                "method.response.header.Access-Control-Allow-Origin": "'*'",
+              },
+              "StatusCode": "204",
+            },
+          ],
+          "RequestTemplates": {
+            "application/json": "{ statusCode: 200 }",
+          },
+          "Type": "MOCK",
+        },
+        "MethodResponses": [
+          {
+            "ResponseParameters": {
+              "method.response.header.Access-Control-Allow-Headers": true,
+              "method.response.header.Access-Control-Allow-Methods": true,
+              "method.response.header.Access-Control-Allow-Origin": true,
+            },
+            "StatusCode": "204",
+          },
+        ],
+        "ResourceId": {
+          "Ref": "ApiimagesAAD105D5",
+        },
+        "RestApiId": {
+          "Ref": "ApiF70053CD",
+        },
+      },
+      "Type": "AWS::ApiGateway::Method",
+    },
+    "ApiimagesPOST18B7C7FE": {
+      "Properties": {
+        "AuthorizationType": "COGNITO_USER_POOLS",
+        "AuthorizerId": {
+          "Ref": "CognitoAuthorizerF3215DBC",
+        },
+        "HttpMethod": "POST",
+        "Integration": {
+          "Credentials": {
+            "Fn::GetAtt": [
+              "APIGatewayDynamoDBRole6D0A0EB1",
+              "Arn",
+            ],
+          },
+          "IntegrationHttpMethod": "POST",
+          "IntegrationResponses": [
+            {
+              "StatusCode": "200",
+            },
+          ],
+          "PassthroughBehavior": "WHEN_NO_TEMPLATES",
+          "RequestParameters": {
+            "integration.request.header.Content-Type": "'application/x-amz-json-1.1'",
+            "integration.request.header.X-Amz-Target": "'DynamoDB_20120810.PutItem'",
+          },
+          "RequestTemplates": {
+            "application/json": "#set($inputRoot = $input.path('$'))
+{
+  "TableName": "ImagesTable",
+  "Item": {
+    "Id": { "S": "$inputRoot.Id" },
+    "ImageS3Prefix": { "S": "$inputRoot.ImageS3Prefix" },
+    "Prompt": { "S": "$inputRoot.Prompt" },
+    "NegativePrompt": { "S": "$inputRoot.NegativePrompt" },
+    "Mode": { "S": "$inputRoot.Mode" },
+    "Images": {
+      "L": [
+        #foreach($image in $inputRoot.Images)
+        {
+          "M": {
+            "ImageName": { "S": "$image.ImageName" },
+            "Labels": { "S": "$image.Labels" }
+          }
+        }#if($foreach.hasNext),#end
+        #end
+      ]
+    }
+  }
+}",
+          },
+          "Type": "AWS",
+          "Uri": {
+            "Fn::Join": [
+              "",
+              [
+                "arn:",
+                {
+                  "Ref": "AWS::Partition",
+                },
+                ":apigateway:ap-northeast-1:dynamodb:action/PutItem",
+              ],
+            ],
+          },
+        },
+        "MethodResponses": [
+          {
+            "StatusCode": "200",
+          },
+        ],
+        "ResourceId": {
+          "Ref": "ApiimagesAAD105D5",
+        },
+        "RestApiId": {
+          "Ref": "ApiF70053CD",
+        },
+      },
+      "Type": "AWS::ApiGateway::Method",
+    },
+    "CognitoAuthorizerF3215DBC": {
+      "Properties": {
+        "IdentitySource": "method.request.header.Authorization",
+        "Name": "CognitoUserPoolsAuthorizer",
+        "ProviderARNs": [
+          {
+            "Fn::ImportValue": "TestAuthStack:ExportsOutputFnGetAttUserPool6BA7E5F2Arn686ACC00",
+          },
+        ],
+        "RestApiId": {
+          "Ref": "ApiF70053CD",
+        },
+        "Type": "COGNITO_USER_POOLS",
+      },
+      "Type": "AWS::ApiGateway::Authorizer",
+    },
+  },
+  "Rules": {
+    "CheckBootstrapVersion": {
+      "Assertions": [
+        {
+          "Assert": {
+            "Fn::Not": [
+              {
+                "Fn::Contains": [
+                  [
+                    "1",
+                    "2",
+                    "3",
+                    "4",
+                    "5",
+                  ],
+                  {
+                    "Ref": "BootstrapVersion",
+                  },
+                ],
+              },
+            ],
+          },
+          "AssertDescription": "CDK bootstrap stack version 6 required. Please run 'cdk bootstrap' with a recent version of the CDK CLI.",
+        },
+      ],
+    },
+  },
+}
+`;
