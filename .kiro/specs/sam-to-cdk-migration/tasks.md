@@ -100,7 +100,7 @@
   - Configure all environment variables per SAM template
   - _Requirements: Compute Layer, Lambda Functions_
 
-- [ ] 12. Implement Lambda function source code for image processing
+- [x] 12. Implement Lambda function source code for image processing
   - Write StartWorkflow Lambda function to trigger Step Functions from DynamoDB stream
   - Write BuildRequest Lambda function to construct Bedrock InvokeModel requests
   - Write ParseResponse Lambda function to process Bedrock model responses
