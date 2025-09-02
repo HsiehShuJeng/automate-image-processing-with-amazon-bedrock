@@ -90,7 +90,7 @@
 
 ## Compute Layer for Image Processing
 
-- [ ] 11. Implement Compute Stack with processing Lambda functions
+- [x] 11. Implement Compute Stack with processing Lambda functions
   - Create ComputeStack class using aws-dynamodbstreams-lambda Solutions Construct
   - Implement StartImageProcessingWorkflowFunction (128MB, 120s timeout) for DynamoDB stream trigger
   - Implement BuildBedrockRequestFunction (512MB, 1024MB ephemeral, 900s timeout)

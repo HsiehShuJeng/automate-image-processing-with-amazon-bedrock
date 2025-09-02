@@ -2,12 +2,12 @@
 
 /**
  * Compute Stack for the Image Processing application.
- * Contains Lambda functions for Step Functions workflow.
+ * Contains Lambda functions for Step Functions workflow with DynamoDB stream trigger.
  */
 
 import { Duration, Size, Stack } from 'aws-cdk-lib';
 import * as lambda from 'aws-cdk-lib/aws-lambda';
-import * as iam from 'aws-cdk-lib/aws-iam';
+import * as lambdaEventSources from 'aws-cdk-lib/aws-lambda-event-sources';
 import { Construct } from 'constructs';
 import { ComputeStackProps, ComputeStackOutputs } from '../types';
 import { applyCdkNag, SecuritySuppressions } from '../utils';
@@ -18,44 +18,56 @@ export class ComputeStack extends Stack {
   constructor(scope: Construct, id: string, props: ComputeStackProps) {
     super(scope, id, props);
 
-    // Create StartImageProcessingWorkflowFunction
+    // Create StartImageProcessingWorkflowFunction with DynamoDB stream trigger
     const startWorkflowFunction = new lambda.Function(this, 'StartImageProcessingWorkflowFunction', {
       runtime: lambda.Runtime.PYTHON_3_13,
       handler: 'app.lambda_handler',
       code: lambda.Code.fromAsset('src/start-image-processing-workflow'),
-      timeout: Duration.seconds(120),
+      timeout: Duration.seconds(120), // Specific timeout per SAM template
       memorySize: 128,
       environment: {
         INPUT_BUCKET: props.bucket.bucketName,
         IMAGE_PREFIX: props.config.imagePrefix,
         GENERATED_IMAGE_PREFIX: props.config.generatedImagePrefix,
         STATUS_REPORT_PREFIX: props.config.statusReportPrefix
+        // STATE_MACHINE_IMAGE_PROCESSING_ARN will be added in orchestration stack
       }
     });
 
-    // Create BuildBedrockRequestFunction
+    // Add DynamoDB stream event source with BatchSize=1, StartingPosition=LATEST
+    startWorkflowFunction.addEventSource(
+      new lambdaEventSources.DynamoEventSource(props.imagesTable, {
+        startingPosition: lambda.StartingPosition.LATEST,
+        batchSize: 1
+      })
+    );
+
+    // Create BuildBedrockRequestFunction with 900s timeout per SAM global setting
     const buildRequestFunction = new lambda.Function(this, 'BuildBedrockRequestFunction', {
       runtime: lambda.Runtime.PYTHON_3_13,
       handler: 'app.lambda_handler',
       code: lambda.Code.fromAsset('src/build-bedrock-request'),
+      timeout: Duration.seconds(900), // Global timeout per SAM template
       memorySize: 512,
       ephemeralStorageSize: Size.mebibytes(1024)
     });
 
-    // Create ParseBedrockResponseFunction
+    // Create ParseBedrockResponseFunction with 900s timeout per SAM global setting
     const parseResponseFunction = new lambda.Function(this, 'ParseBedrockResponseFunction', {
       runtime: lambda.Runtime.PYTHON_3_13,
       handler: 'app.lambda_handler',
       code: lambda.Code.fromAsset('src/parse-bedrock-response'),
+      timeout: Duration.seconds(900), // Global timeout per SAM template
       memorySize: 512,
       ephemeralStorageSize: Size.mebibytes(1024)
     });
 
-    // Create GenerateStatusReportFunction
+    // Create GenerateStatusReportFunction with 900s timeout per SAM global setting
     const statusReportFunction = new lambda.Function(this, 'GenerateStatusReportFunction', {
       runtime: lambda.Runtime.PYTHON_3_13,
       handler: 'app.lambda_handler',
       code: lambda.Code.fromAsset('src/generate-status-report'),
+      timeout: Duration.seconds(900), // Global timeout per SAM template
       memorySize: 128,
       environment: {
         STATUS_TABLE: props.statusTable.tableName,

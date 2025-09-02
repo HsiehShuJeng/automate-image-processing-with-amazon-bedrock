@@ -38,11 +38,11 @@ describe('ComputeStack', () => {
   });
 
   describe('Lambda Functions Configuration', () => {
-    test('creates StartImageProcessingWorkflowFunction', () => {
+    test('creates StartImageProcessingWorkflowFunction with correct timeout', () => {
       template.hasResourceProperties('AWS::Lambda::Function', {
         Handler: 'app.lambda_handler',
         Runtime: 'python3.13',
-        Timeout: 120,
+        Timeout: 120, // Specific timeout per SAM template
         MemorySize: 128
       });
     });
@@ -51,6 +51,7 @@ describe('ComputeStack', () => {
       template.hasResourceProperties('AWS::Lambda::Function', {
         Handler: 'app.lambda_handler',
         Runtime: 'python3.13',
+        Timeout: 900, // Global timeout per SAM template
         MemorySize: 512,
         EphemeralStorage: {
           Size: 1024
@@ -62,6 +63,7 @@ describe('ComputeStack', () => {
       template.hasResourceProperties('AWS::Lambda::Function', {
         Handler: 'app.lambda_handler',
         Runtime: 'python3.13',
+        Timeout: 900, // Global timeout per SAM template
         MemorySize: 512,
         EphemeralStorage: {
           Size: 1024
@@ -69,10 +71,11 @@ describe('ComputeStack', () => {
       });
     });
 
-    test('creates GenerateStatusReportFunction', () => {
+    test('creates GenerateStatusReportFunction with correct timeout', () => {
       template.hasResourceProperties('AWS::Lambda::Function', {
         Handler: 'app.lambda_handler',
         Runtime: 'python3.13',
+        Timeout: 900, // Global timeout per SAM template
         MemorySize: 128
       });
     });
@@ -141,6 +144,35 @@ describe('ComputeStack', () => {
         key => template.toJSON().Resources[key].Type === 'AWS::IAM::Role'
       ).length;
       expect(roleCount).toBeGreaterThanOrEqual(4);
+    });
+  });
+
+  describe('DynamoDB Stream Integration', () => {
+    test('creates DynamoDB event source mapping for StartWorkflowFunction', () => {
+      template.hasResourceProperties('AWS::Lambda::EventSourceMapping', {
+        BatchSize: 1,
+        StartingPosition: 'LATEST'
+      });
+    });
+
+    test('event source mapping references correct DynamoDB table stream', () => {
+      template.hasResourceProperties('AWS::Lambda::EventSourceMapping', {
+        EventSourceArn: {
+          'Fn::ImportValue': Match.stringLikeRegexp('.*ImagesTable.*StreamArn.*')
+        }
+      });
+    });
+
+    test('event source mapping targets StartWorkflowFunction', () => {
+      template.hasResourceProperties('AWS::Lambda::EventSourceMapping', {
+        FunctionName: {
+          Ref: Match.stringLikeRegexp('.*StartImageProcessingWorkflowFunction.*')
+        }
+      });
+    });
+
+    test('creates exactly one event source mapping', () => {
+      template.resourceCountIs('AWS::Lambda::EventSourceMapping', 1);
     });
   });
 
