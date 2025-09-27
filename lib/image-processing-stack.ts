@@ -19,6 +19,14 @@ export interface ImageProcessingStageProps extends StageProps {
    * Configuration parameters for the image processing workflow. Defaults mirror the SAM template.
    */
   readonly config?: ImageProcessingConfig;
+  /**
+   * Logical environment name used for naming conventions.
+   */
+  readonly environmentName?: string;
+  /**
+   * Prefix applied to stack names within the stage.
+   */
+  readonly stackNamePrefix?: string;
 }
 
 export class ImageProcessingStage extends Stage {
@@ -29,11 +37,16 @@ export class ImageProcessingStage extends Stage {
   public readonly orchestrationStack: OrchestrationStack;
   public readonly apiStack: ApiStack;
   public readonly config: ImageProcessingConfig;
+  public readonly environmentName: string;
+  public readonly stackNamePrefix: string;
 
   constructor(scope: Construct, id: string, props: ImageProcessingStageProps = {}) {
     super(scope, id, props);
 
     this.config = props.config ?? DEFAULT_CONFIG;
+
+    this.environmentName = props.environmentName ?? 'dev';
+    this.stackNamePrefix = props.stackNamePrefix ?? `ImageProcessing${toPascalCase(this.environmentName)}`;
 
     const stackEnv = props.env ?? {
       account: process.env.CDK_DEFAULT_ACCOUNT,
@@ -42,17 +55,20 @@ export class ImageProcessingStage extends Stage {
 
     this.storageStack = new StorageStack(this, 'StorageStack', {
       config: this.config,
-      env: stackEnv
+      env: stackEnv,
+      stackName: `${this.stackNamePrefix}-storage`
     });
 
     this.authStack = new AuthStack(this, 'AuthStack', {
       config: this.config,
-      env: stackEnv
+      env: stackEnv,
+      stackName: `${this.stackNamePrefix}-auth`
     });
 
     this.notificationStack = new NotificationStack(this, 'NotificationStack', {
       config: this.config,
-      env: stackEnv
+      env: stackEnv,
+      stackName: `${this.stackNamePrefix}-notification`
     });
 
     this.computeStack = new ComputeStack(this, 'ComputeStack', {
@@ -61,7 +77,8 @@ export class ImageProcessingStage extends Stage {
       imagesTable: this.storageStack.outputs.imagesTable,
       statusTable: this.storageStack.outputs.statusTable,
       snsTopic: this.notificationStack.outputs.topic,
-      env: stackEnv
+      env: stackEnv,
+      stackName: `${this.stackNamePrefix}-compute`
     });
     this.computeStack.addDependency(this.storageStack);
     this.computeStack.addDependency(this.notificationStack);
@@ -72,7 +89,8 @@ export class ImageProcessingStage extends Stage {
       bucket: this.storageStack.outputs.bucket,
       statusTable: this.storageStack.outputs.statusTable,
       snsTopic: this.notificationStack.outputs.topic,
-      env: stackEnv
+      env: stackEnv,
+      stackName: `${this.stackNamePrefix}-orchestration`
     });
     this.orchestrationStack.addDependency(this.computeStack);
     this.orchestrationStack.addDependency(this.storageStack);
@@ -82,9 +100,18 @@ export class ImageProcessingStage extends Stage {
       config: this.config,
       userPool: this.authStack.outputs.userPool,
       imagesTable: this.storageStack.outputs.imagesTable,
-      env: stackEnv
+      env: stackEnv,
+      stackName: `${this.stackNamePrefix}-api`
     });
     this.apiStack.addDependency(this.authStack);
     this.apiStack.addDependency(this.storageStack);
   }
+}
+
+function toPascalCase(value: string): string {
+  return value
+    .split(/[^a-zA-Z0-9]+/)
+    .filter((part) => part.length > 0)
+    .map((part) => part.charAt(0).toUpperCase() + part.slice(1))
+    .join('');
 }

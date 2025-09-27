@@ -6,3 +6,4 @@
 
 export * from './security';
 export * from './security-baseline';
+export * from './app-config';

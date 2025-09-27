@@ -47,4 +47,22 @@ describe('ImageProcessingStage', () => {
     );
     expect(apiStack.dependencies).toEqual(expect.arrayContaining([storageStack, stage.authStack]));
   });
+
+  test('applies environment-specific stack name prefix', () => {
+    const app = new App();
+    const config = { ...DEFAULT_CONFIG, notificationEmail: 'ops@example.com' };
+
+    const stage = new ImageProcessingStage(app, 'ProdStage', {
+      config,
+      environmentName: 'prod-eu',
+      stackNamePrefix: 'ImageProcessingProdEu',
+      env: { account: '123456789012', region: 'eu-central-1' }
+    });
+
+    expect(stage.environmentName).toBe('prod-eu');
+    expect(stage.stackNamePrefix).toBe('ImageProcessingProdEu');
+    expect(stage.storageStack.stackName).toBe('ImageProcessingProdEu-storage');
+    expect(stage.authStack.stackName).toBe('ImageProcessingProdEu-auth');
+    expect(stage.apiStack.stackName).toBe('ImageProcessingProdEu-api');
+  });
 });
