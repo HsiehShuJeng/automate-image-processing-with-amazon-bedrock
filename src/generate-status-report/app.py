@@ -9,7 +9,7 @@ with pre-signed URLs for easy access.
 import json
 import logging
 import os
-from datetime import datetime, timedelta
+from datetime import datetime, timedelta, timezone
 from typing import Any, Dict, List
 
 import boto3
@@ -72,7 +72,7 @@ def lambda_handler(event: Dict[str, Any], context: Any) -> Dict[str, Any]:
         update_status_table(processing_data['workflow_id'], {
             'status': 'COMPLETED',
             'report_url': presigned_url,
-            'completed_at': datetime.utcnow().isoformat(),
+            'completed_at': datetime.now(timezone.utc).isoformat(),
             'processed_images': len(processing_data.get('processed_images', []))
         })
         
@@ -133,7 +133,7 @@ def generate_status_report(processing_data: Dict[str, Any]) -> Dict[str, Any]:
     """
     report = {
         'workflow_id': processing_data['workflow_id'],
-        'timestamp': datetime.utcnow().isoformat(),
+        'timestamp': datetime.now(timezone.utc).isoformat(),
         'status': 'COMPLETED',
         'processing_summary': {
             'prompt': processing_data['prompt'],
@@ -146,7 +146,7 @@ def generate_status_report(processing_data: Dict[str, Any]) -> Dict[str, Any]:
         'processed_images': processing_data['processed_images'],
         'processing_details': {
             'started_at': processing_data.get('started_at'),
-            'completed_at': datetime.utcnow().isoformat(),
+            'completed_at': datetime.now(timezone.utc).isoformat(),
             'duration_seconds': calculate_processing_duration(processing_data)
         }
     }
@@ -169,7 +169,7 @@ def calculate_processing_duration(processing_data: Dict[str, Any]) -> float:
     try:
         if 'started_at' in processing_data:
             started = datetime.fromisoformat(processing_data['started_at'].replace('Z', '+00:00'))
-            completed = datetime.utcnow()
+            completed = datetime.now(timezone.utc)
             return (completed - started).total_seconds()
     except Exception as e:
         logger.warning(f"Could not calculate duration: {e}")
@@ -196,7 +196,7 @@ def store_status_report(
     Returns:
         S3 key of stored report
     """
-    timestamp = datetime.utcnow().strftime('%Y%m%d_%H%M%S')
+    timestamp = datetime.now(timezone.utc).strftime('%Y%m%d_%H%M%S')
     report_key = f"{status_prefix}/status_report_{workflow_id}_{timestamp}.json"
     
     try:

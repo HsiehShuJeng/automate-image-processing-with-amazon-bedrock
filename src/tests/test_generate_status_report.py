@@ -2,7 +2,7 @@ from __future__ import annotations
 
 import os
 import sys
-from datetime import datetime, timedelta
+from datetime import datetime, timedelta, timezone
 from pathlib import Path
 from unittest import TestCase, mock
 
@@ -36,7 +36,7 @@ class GenerateStatusReportTests(TestCase):
             'mode': 'variation',
             'input_images': [{'ImageName': 'one.jpg'}],
             'processed_images': [{'filename': 'processed.png'}],
-            'started_at': datetime.utcnow().isoformat()
+            'started_at': datetime.now(timezone.utc).isoformat()
         }
         report = self.module.generate_status_report(processing_data)
         self.assertEqual(report['workflow_id'], 'workflow-1')
@@ -44,7 +44,7 @@ class GenerateStatusReportTests(TestCase):
         self.assertEqual(report['processing_summary']['processed_images_count'], 1)
 
     def test_calculate_processing_duration_when_started(self) -> None:
-        started = (datetime.utcnow() - timedelta(minutes=5)).isoformat()
+        started = (datetime.now(timezone.utc) - timedelta(minutes=5)).isoformat()
         processing_data = {'started_at': started}
         duration = self.module.calculate_processing_duration(processing_data)
         self.assertGreater(duration, 0)
