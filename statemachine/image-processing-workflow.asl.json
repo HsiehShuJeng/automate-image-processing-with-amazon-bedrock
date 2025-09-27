@@ -1,0 +1,204 @@
+{
+  "Comment": "Image processing workflow",
+  "StartAt": "Process Images",
+  "States": {
+    "Process Images": {
+      "Type": "Map",
+      "Label": "Map",
+      "ItemsPath": "$.Images",
+      "ItemSelector": {
+        "Id.$": "$.Id",
+        "S3Bucket.$": "$.S3Bucket",
+        "InputS3Prefix.$": "$.InputS3Prefix",
+        "OutputS3Prefix.$": "$.OutputS3Prefix",
+        "Prompt.$": "$.Prompt",
+        "NegativePrompt.$": "$.NegativePrompt",
+        "Mode.$": "$.Mode",
+        "Image.$": "$$.Map.Item.Value"
+      },
+      "ItemProcessor": {
+        "ProcessorConfig": {
+          "Mode": "DISTRIBUTED",
+          "ExecutionType": "STANDARD"
+        },
+        "StartAt": "Build Bedrock Request",
+        "States": {
+          "Build Bedrock Request": {
+            "Type": "Task",
+            "Resource": "arn:aws:states:::lambda:invoke",
+            "Parameters": {
+              "Payload.$": "$$.Map.Item.Value",
+              "FunctionName": "${BuildBedrockRequestFunctionArn}"
+            },
+            "Retry": [
+              {
+                "ErrorEquals": [
+                  "Lambda.ServiceException",
+                  "Lambda.AWSLambdaException",
+                  "Lambda.SdkClientException",
+                  "Lambda.TooManyRequestsException"
+                ],
+                "IntervalSeconds": 1,
+                "MaxAttempts": 3,
+                "BackoffRate": 2
+              }
+            ],
+            "Catch": [
+              {
+                "ErrorEquals": [
+                  "States.ALL"
+                ],
+                "ResultPath": "$.Status",
+                "Next": "Update 'Failed' Status"
+              }
+            ],
+            "ResultPath": null,
+            "Next": "Bedrock InvokeModel"
+          },
+          "Bedrock InvokeModel": {
+            "Type": "Task",
+            "Resource": "arn:aws:states:::bedrock:invokeModel",
+            "Parameters": {
+              "ModelId": "${BedrockModelArn}",
+              "Input": {
+                "S3Uri.$": "States.Format('s3://{}/{}/{}.json', $.S3Bucket, $.InputS3Prefix, States.ArrayGetItem(States.StringSplit($.Image.ImageName, '.'), 0))"
+              },
+              "Output": {
+                "S3Uri.$": "States.Format('s3://{}/{}/{}.json', $.S3Bucket, $.OutputS3Prefix, States.ArrayGetItem(States.StringSplit($.Image.ImageName, '.'), 0))"
+              },
+              "ContentType": "application/json"
+            },
+            "Catch": [
+              {
+                "ErrorEquals": [
+                  "States.ALL"
+                ],
+                "ResultPath": "$.Status",
+                "Next": "Update 'Failed' Status"
+              }
+            ],
+            "ResultPath": "$.output",
+            "Next": "Parse Bedrock Response"
+          },
+          "Parse Bedrock Response": {
+            "Type": "Task",
+            "Resource": "arn:aws:states:::lambda:invoke",
+            "Parameters": {
+              "Payload.$": "$$.Map.Item.Value",
+              "FunctionName": "${ParseBedrockResponseFunctionArn}"
+            },
+            "Retry": [
+              {
+                "ErrorEquals": [
+                  "Lambda.ServiceException",
+                  "Lambda.AWSLambdaException",
+                  "Lambda.SdkClientException",
+                  "Lambda.TooManyRequestsException"
+                ],
+                "IntervalSeconds": 1,
+                "MaxAttempts": 3,
+                "BackoffRate": 2
+              }
+            ],
+            "Catch": [
+              {
+                "ErrorEquals": [
+                  "States.ALL"
+                ],
+                "ResultPath": "$.Status",
+                "Next": "Update 'Failed' Status"
+              }
+            ],
+            "ResultPath": null,
+            "Next": "Update 'Succeeded' Status"
+          },
+          "Update 'Succeeded' Status": {
+            "Type": "Task",
+            "Resource": "arn:aws:states:::dynamodb:putItem",
+            "Parameters": {
+              "TableName": "${StatusTableName}",
+              "Item": {
+                "Id": {
+                  "S.$": "$.Id"
+                },
+                "ImageName": {
+                  "S.$": "$.Image.ImageName"
+                },
+                "Status": {
+                  "S": "Succeeded"
+                }
+              }
+            },
+            "End": true
+          },
+          "Update 'Failed' Status": {
+            "Type": "Task",
+            "Resource": "arn:aws:states:::dynamodb:putItem",
+            "Parameters": {
+              "TableName": "${StatusTableName}",
+              "Item": {
+                "Id": {
+                  "S.$": "$.Id"
+                },
+                "ImageName": {
+                  "S.$": "$.Image.ImageName"
+                },
+                "Status": {
+                  "S": "Failed"
+                },
+                "Error": {
+                  "S.$": "$.Status.Error"
+                },
+                "Cause": {
+                  "S.$": "$.Status.Cause"
+                }
+              }
+            },
+            "End": true
+          }
+        }
+      },
+      "MaxConcurrency": "${MaxConcurrency}",
+      "ToleratedFailurePercentage": 90,
+      "ResultPath": null,
+      "Next": "Generate Status Report"
+    },
+    "Generate Status Report": {
+      "Type": "Task",
+      "Resource": "arn:aws:states:::lambda:invoke",
+      "Parameters": {
+        "Payload.$": "$",
+        "FunctionName": "${GenerateStatusReportFunctionArn}"
+      },
+      "Retry": [
+        {
+          "ErrorEquals": [
+            "Lambda.ServiceException",
+            "Lambda.AWSLambdaException",
+            "Lambda.SdkClientException",
+            "Lambda.TooManyRequestsException"
+          ],
+          "IntervalSeconds": 1,
+          "MaxAttempts": 3,
+          "BackoffRate": 2
+        }
+      ],
+      "ResultSelector": {
+        "ReportURL.$": "$.Payload.ReportURL",
+        "ReportS3Key.$": "$.Payload.ReportS3Key"
+      },
+      "ResultPath": "$.StatusReport",
+      "Next": "Send Email"
+    },
+    "Send Email": {
+      "Type": "Task",
+      "Resource": "arn:aws:states:::aws-sdk:sns:publish",
+      "Parameters": {
+        "TopicArn": "${NotificationSNSTopicArn}",
+        "Message.$": "States.Format('Hi,\n\nWe are pleased to inform you that the image processing has been successfully completed.\n\nYou can access the status report at the following link: s3://{}/{}/\n\nAll processed images can be found in the S3 bucket at the following location: s3://{}/{}/\n\nThank you.\n\nBest regards,\nIT Team', $.S3Bucket, $.StatusS3Prefix, $.S3Bucket, $.OutputS3Prefix)",
+        "Subject": "Image Processing Completed - Status Report Available"
+      },
+      "End": true
+    }
+  }
+}
