@@ -6,6 +6,7 @@
  */
 
 import { Duration, Size, Stack } from 'aws-cdk-lib';
+import * as iam from 'aws-cdk-lib/aws-iam';
 import * as lambda from 'aws-cdk-lib/aws-lambda';
 import * as lambdaEventSources from 'aws-cdk-lib/aws-lambda-event-sources';
 import { LambdaToSns } from '@aws-solutions-constructs/aws-lambda-sns';
@@ -26,6 +27,12 @@ export class ComputeStack extends Stack {
       `arn:aws:lambda:${this.region}:017000801446:layer:AWSLambdaPowertoolsPythonV2:68`
     );
 
+    const stateMachineArn = this.formatArn({
+      service: 'states',
+      resource: 'stateMachine',
+      resourceName: props.config.imageProcessingWorkflowName
+    });
+
     // Create StartImageProcessingWorkflowFunction with DynamoDB stream trigger
     const startWorkflowFunction = new lambda.Function(this, 'StartImageProcessingWorkflowFunction', {
       runtime: lambda.Runtime.PYTHON_3_13,
@@ -35,13 +42,13 @@ export class ComputeStack extends Stack {
       memorySize: 128,
       layers: [powertoolsLayer],
       environment: {
+        STATE_MACHINE_IMAGE_PROCESSING_ARN: stateMachineArn,
         INPUT_BUCKET: props.bucket.bucketName,
         IMAGE_PREFIX: props.config.imagePrefix,
         GENERATED_IMAGE_PREFIX: props.config.generatedImagePrefix,
         STATUS_REPORT_PREFIX: props.config.statusReportPrefix,
         POWERTOOLS_SERVICE_NAME: 'image-processing',
         POWERTOOLS_METRICS_NAMESPACE: 'ImageProcessing'
-        // STATE_MACHINE_IMAGE_PROCESSING_ARN will be added in orchestration stack
       }
     });
 
@@ -50,6 +57,13 @@ export class ComputeStack extends Stack {
       new lambdaEventSources.DynamoEventSource(props.imagesTable, {
         startingPosition: lambda.StartingPosition.LATEST,
         batchSize: 1
+      })
+    );
+
+    startWorkflowFunction.addToRolePolicy(
+      new iam.PolicyStatement({
+        actions: ['states:StartExecution'],
+        resources: [stateMachineArn]
       })
     );
 

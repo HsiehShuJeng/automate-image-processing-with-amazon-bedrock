@@ -244,12 +244,6 @@ export class OrchestrationStack extends Stack {
       resources: ['*']
     }));
 
-    props.computeFunctions.startWorkflowFunction.addEnvironment(
-      'STATE_MACHINE_IMAGE_PROCESSING_ARN',
-      stateMachine.stateMachineArn
-    );
-    stateMachine.grantStartExecution(props.computeFunctions.startWorkflowFunction);
-
     applyCdkNag(this);
     SecuritySuppressions.applyCommonSuppressions(this, 'Orchestration Stack');
     SecuritySuppressions.applyStepFunctionsSuppressions(this);

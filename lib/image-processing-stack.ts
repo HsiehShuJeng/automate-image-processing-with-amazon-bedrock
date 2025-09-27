@@ -92,9 +92,6 @@ export class ImageProcessingStage extends Stage {
       env: stackEnv,
       stackName: `${this.stackNamePrefix}-orchestration`
     });
-    this.orchestrationStack.addDependency(this.computeStack);
-    this.orchestrationStack.addDependency(this.storageStack);
-    this.orchestrationStack.addDependency(this.notificationStack);
 
     this.apiStack = new ApiStack(this, 'ApiStack', {
       config: this.config,
