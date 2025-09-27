@@ -93,7 +93,7 @@ exports[`OrchestrationStack snapshot matches synthesized template snapshot 1`] =
               },
               ":states:::sns:publish","Parameters":{"TopicArn":"",
               {
-                "Fn::ImportValue": "TestTopicStack:ExportsOutputRefTestNotificationTopic7FF11CA422EEF074",
+                "Fn::ImportValue": "TestNotificationStack:ExportsOutputRefNotificationTopicEB7A0DF194E944DD",
               },
               "","Message.$":"States.Format('Hi,\\n\\nWe are pleased to inform you that the image processing has been successfully completed.\\n\\nYou can access the status report at the following link: \\ns3://{}/{}/\\n\\nAll processed images can be found in the S3 bucket at the following location:\\n\\ns3://{}/{}/\\n\\nThank you.\\n\\nBest regards,\\n\\nIT Team', $.S3Bucket, $.StatusS3Prefix, $.S3Bucket, $.OutputS3Prefix)","Subject":"Image Processing Completed - Status Report Available"}}},"TimeoutSeconds":900}",
             ],
@@ -223,7 +223,7 @@ exports[`OrchestrationStack snapshot matches synthesized template snapshot 1`] =
               "Action": "sns:Publish",
               "Effect": "Allow",
               "Resource": {
-                "Fn::ImportValue": "TestTopicStack:ExportsOutputRefTestNotificationTopic7FF11CA422EEF074",
+                "Fn::ImportValue": "TestNotificationStack:ExportsOutputRefNotificationTopicEB7A0DF194E944DD",
               },
             },
             {

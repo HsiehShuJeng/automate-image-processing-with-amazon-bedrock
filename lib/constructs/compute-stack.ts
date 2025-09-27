@@ -8,6 +8,7 @@
 import { Duration, Size, Stack } from 'aws-cdk-lib';
 import * as lambda from 'aws-cdk-lib/aws-lambda';
 import * as lambdaEventSources from 'aws-cdk-lib/aws-lambda-event-sources';
+import { LambdaToSns } from '@aws-solutions-constructs/aws-lambda-sns';
 import { Construct } from 'constructs';
 import { ComputeStackProps, ComputeStackOutputs } from '../types';
 import { applyCdkNag, SecuritySuppressions } from '../utils';
@@ -103,6 +104,13 @@ export class ComputeStack extends Stack {
     props.bucket.grantReadWrite(parseResponseFunction);
     props.bucket.grantReadWrite(statusReportFunction);
     props.statusTable.grantReadData(statusReportFunction);
+
+    new LambdaToSns(this, 'StatusReportNotifications', {
+      existingLambdaObj: statusReportFunction,
+      existingTopicObj: props.snsTopic,
+      topicArnEnvironmentVariableName: 'NOTIFICATION_TOPIC_ARN',
+      topicNameEnvironmentVariableName: 'NOTIFICATION_TOPIC_NAME'
+    });
 
     // Apply CDK Nag security checks
     applyCdkNag(this);

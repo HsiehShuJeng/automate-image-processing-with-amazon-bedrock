@@ -1,9 +1,9 @@
-import { App, Stack } from 'aws-cdk-lib';
+import { App } from 'aws-cdk-lib';
 import { Template } from 'aws-cdk-lib/assertions';
-import * as sns from 'aws-cdk-lib/aws-sns';
 import { StorageStack } from '../../lib/constructs/storage-stack';
 import { ComputeStack } from '../../lib/constructs/compute-stack';
 import { OrchestrationStack } from '../../lib/constructs/orchestration-stack';
+import { NotificationStack } from '../../lib/constructs/notification-stack';
 import { DEFAULT_CONFIG, ImageProcessingConfig } from '../../lib/types';
 
 export interface OrchestrationTestContext {
@@ -24,15 +24,14 @@ export function createOrchestrationTestContext(): OrchestrationTestContext {
   };
 
   const storageStack = new StorageStack(app, 'TestStorageStack', { config, env });
-  const topicStack = new Stack(app, 'TestTopicStack', { env });
-  const topic = new sns.Topic(topicStack, 'TestNotificationTopic');
+  const notificationStack = new NotificationStack(app, 'TestNotificationStack', { config, env });
 
   const computeStack = new ComputeStack(app, 'TestComputeStack', {
     config,
     bucket: storageStack.outputs.bucket,
     imagesTable: storageStack.outputs.imagesTable,
     statusTable: storageStack.outputs.statusTable,
-    snsTopic: topic,
+    snsTopic: notificationStack.outputs.topic,
     env
   });
 
@@ -40,7 +39,7 @@ export function createOrchestrationTestContext(): OrchestrationTestContext {
     config,
     bucket: storageStack.outputs.bucket,
     statusTable: storageStack.outputs.statusTable,
-    snsTopic: topic,
+    snsTopic: notificationStack.outputs.topic,
     computeFunctions: computeStack.outputs,
     env
   });
