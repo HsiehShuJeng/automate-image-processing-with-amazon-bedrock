@@ -10,3 +10,6 @@ cdk.out
 # Python
 # Ignore Python bytecode caches everywhere
 **/__pycache__/
+
+# Local steering metadata
+**/.kiro/steering/

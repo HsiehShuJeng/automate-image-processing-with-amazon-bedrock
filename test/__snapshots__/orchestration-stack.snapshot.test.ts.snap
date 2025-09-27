@@ -1,0 +1,433 @@
+// Jest Snapshot v1, https://goo.gl/fbAQLP
+
+exports[`OrchestrationStack snapshot matches synthesized template snapshot 1`] = `
+{
+  "Metadata": {
+    "cdk_nag": {
+      "rules_to_suppress": [
+        {
+          "id": "AwsSolutions-IAM4",
+          "reason": "Orchestration Stack: AWS managed policies are acceptable for this use case",
+        },
+        {
+          "id": "AwsSolutions-IAM5",
+          "reason": "Orchestration Stack: Wildcard permissions required for cross-service integrations",
+        },
+        {
+          "id": "AwsSolutions-SF-1",
+          "reason": "Image Processing: CloudWatch logging enabled for Step Functions",
+        },
+        {
+          "id": "AwsSolutions-SF-2",
+          "reason": "Image Processing: X-Ray tracing enabled for Step Functions",
+        },
+      ],
+    },
+  },
+  "Parameters": {
+    "BootstrapVersion": {
+      "Default": "/cdk-bootstrap/hnb659fds/version",
+      "Description": "Version of the CDK Bootstrap resources in this environment, automatically retrieved from SSM Parameter Store. [cdk:skip]",
+      "Type": "AWS::SSM::Parameter::Value<String>",
+    },
+  },
+  "Resources": {
+    "ImageProcessingWorkflowDA724ABE": {
+      "DeletionPolicy": "Delete",
+      "DependsOn": [
+        "ImageProcessingWorkflowRoleDefaultPolicy7DEC96BC",
+        "ImageProcessingWorkflowRole48F0B8FD",
+      ],
+      "Properties": {
+        "DefinitionString": {
+          "Fn::Join": [
+            "",
+            [
+              "{"StartAt":"Process Images","States":{"Process Images":{"Type":"Map","ResultPath":null,"Next":"Generate Status Report","ItemsPath":"$.Images","ItemSelector":{"Id.$":"$.Id","S3Bucket.$":"$.S3Bucket","InputS3Prefix.$":"$.InputS3Prefix","OutputS3Prefix.$":"$.OutputS3Prefix","Prompt.$":"$.Prompt","NegativePrompt.$":"$.NegativePrompt","Mode.$":"$.Mode","Image.$":"$$.Map.Item.Value"},"ItemProcessor":{"ProcessorConfig":{"Mode":"DISTRIBUTED","ExecutionType":"STANDARD"},"StartAt":"Build Bedrock Request","States":{"Build Bedrock Request":{"Next":"Bedrock InvokeModel","Retry":[{"ErrorEquals":["Lambda.ClientExecutionTimeoutException","Lambda.ServiceException","Lambda.AWSLambdaException","Lambda.SdkClientException"],"IntervalSeconds":2,"MaxAttempts":6,"BackoffRate":2},{"ErrorEquals":["Lambda.ServiceException","Lambda.AWSLambdaException","Lambda.SdkClientException","Lambda.TooManyRequestsException"],"IntervalSeconds":1,"MaxAttempts":3,"BackoffRate":2}],"Catch":[{"ErrorEquals":["States.ALL"],"ResultPath":"$.Status","Next":"Update 'Failed' Status"}],"Type":"Task","ResultPath":null,"Resource":"arn:",
+              {
+                "Ref": "AWS::Partition",
+              },
+              ":states:::lambda:invoke","Parameters":{"FunctionName":"",
+              {
+                "Fn::ImportValue": "TestComputeStack:ExportsOutputFnGetAttBuildBedrockRequestFunctionDA87F836Arn956C39A4",
+              },
+              "","Payload.$":"$"}},"Bedrock InvokeModel":{"Next":"Parse Bedrock Response","Catch":[{"ErrorEquals":["States.ALL"],"ResultPath":"$.Status","Next":"Update 'Failed' Status"}],"Type":"Task","ResultPath":"$.output","Resource":"arn:",
+              {
+                "Ref": "AWS::Partition",
+              },
+              ":states:::aws-sdk:bedrock:invokeModel","Parameters":{"ModelId":"arn:aws:bedrock:us-east-1::foundation-model/amazon.titan-image-generator-v1","Input":{"S3Uri.$":"States.Format('s3://{}/{}/{}.json', $.S3Bucket, $.InputS3Prefix, States.ArrayGetItem(States.StringSplit($.Image.ImageName, '.'), 0))"},"Output":{"S3Uri.$":"States.Format('s3://{}/{}/{}.json', $.S3Bucket, $.OutputS3Prefix, States.ArrayGetItem(States.StringSplit($.Image.ImageName, '.'), 0))"},"ContentType":"application/json"}},"Parse Bedrock Response":{"Next":"Update 'Succeeded' Status","Retry":[{"ErrorEquals":["Lambda.ClientExecutionTimeoutException","Lambda.ServiceException","Lambda.AWSLambdaException","Lambda.SdkClientException"],"IntervalSeconds":2,"MaxAttempts":6,"BackoffRate":2},{"ErrorEquals":["Lambda.ServiceException","Lambda.AWSLambdaException","Lambda.SdkClientException","Lambda.TooManyRequestsException"],"IntervalSeconds":1,"MaxAttempts":3,"BackoffRate":2}],"Catch":[{"ErrorEquals":["States.ALL"],"ResultPath":"$.Status","Next":"Update 'Failed' Status"}],"Type":"Task","ResultPath":null,"Resource":"arn:",
+              {
+                "Ref": "AWS::Partition",
+              },
+              ":states:::lambda:invoke","Parameters":{"FunctionName":"",
+              {
+                "Fn::ImportValue": "TestComputeStack:ExportsOutputFnGetAttParseBedrockResponseFunction0CCE54ADArn6C39FB22",
+              },
+              "","Payload.$":"$"}},"Update 'Succeeded' Status":{"End":true,"Type":"Task","Resource":"arn:",
+              {
+                "Ref": "AWS::Partition",
+              },
+              ":states:::dynamodb:putItem","Parameters":{"Item":{"Id":{"S.$":"$.Id"},"ImageName":{"S.$":"$.Image.ImageName"},"Status":{"S":"Succeeded"}},"TableName":"",
+              {
+                "Fn::ImportValue": "TestStorageStack:ExportsOutputRefStatusTable0F76785B74628FD7",
+              },
+              ""}},"Update 'Failed' Status":{"End":true,"Type":"Task","Resource":"arn:",
+              {
+                "Ref": "AWS::Partition",
+              },
+              ":states:::dynamodb:putItem","Parameters":{"Item":{"Id":{"S.$":"$.Id"},"ImageName":{"S.$":"$.Image.ImageName"},"Status":{"S":"Failed"},"Error":{"S.$":"$.Status.Error"},"Cause":{"S.$":"$.Status.Cause"}},"TableName":"",
+              {
+                "Fn::ImportValue": "TestStorageStack:ExportsOutputRefStatusTable0F76785B74628FD7",
+              },
+              ""}}}},"MaxConcurrency":10,"ToleratedFailurePercentage":90,"Label":"Map"},"Generate Status Report":{"Next":"Send Email","Retry":[{"ErrorEquals":["Lambda.ClientExecutionTimeoutException","Lambda.ServiceException","Lambda.AWSLambdaException","Lambda.SdkClientException"],"IntervalSeconds":2,"MaxAttempts":6,"BackoffRate":2},{"ErrorEquals":["Lambda.ServiceException","Lambda.AWSLambdaException","Lambda.SdkClientException","Lambda.TooManyRequestsException"],"IntervalSeconds":1,"MaxAttempts":3,"BackoffRate":2}],"Type":"Task","ResultPath":"$.StatusReport","ResultSelector":{"ReportURL.$":"$.Payload.ReportURL","ReportS3Key.$":"$.Payload.ReportS3Key"},"Resource":"arn:",
+              {
+                "Ref": "AWS::Partition",
+              },
+              ":states:::lambda:invoke","Parameters":{"FunctionName":"",
+              {
+                "Fn::ImportValue": "TestComputeStack:ExportsOutputFnGetAttGenerateStatusReportFunction90F293D1Arn0FA6B7E4",
+              },
+              "","Payload.$":"$"}},"Send Email":{"End":true,"Type":"Task","ResultPath":null,"Resource":"arn:",
+              {
+                "Ref": "AWS::Partition",
+              },
+              ":states:::sns:publish","Parameters":{"TopicArn":"",
+              {
+                "Fn::ImportValue": "TestTopicStack:ExportsOutputRefTestNotificationTopic7FF11CA422EEF074",
+              },
+              "","Message.$":"States.Format('Hi,\\n\\nWe are pleased to inform you that the image processing has been successfully completed.\\n\\nYou can access the status report at the following link: \\ns3://{}/{}/\\n\\nAll processed images can be found in the S3 bucket at the following location:\\n\\ns3://{}/{}/\\n\\nThank you.\\n\\nBest regards,\\n\\nIT Team', $.S3Bucket, $.StatusS3Prefix, $.S3Bucket, $.OutputS3Prefix)","Subject":"Image Processing Completed - Status Report Available"}}},"TimeoutSeconds":900}",
+            ],
+          ],
+        },
+        "LoggingConfiguration": {
+          "Destinations": [
+            {
+              "CloudWatchLogsLogGroup": {
+                "LogGroupArn": {
+                  "Fn::GetAtt": [
+                    "ImageProcessingWorkflowLogsF4E626CE",
+                    "Arn",
+                  ],
+                },
+              },
+            },
+          ],
+          "IncludeExecutionData": true,
+          "Level": "ALL",
+        },
+        "RoleArn": {
+          "Fn::GetAtt": [
+            "ImageProcessingWorkflowRole48F0B8FD",
+            "Arn",
+          ],
+        },
+        "StateMachineName": "image-processing-workflow",
+        "TracingConfiguration": {
+          "Enabled": true,
+        },
+      },
+      "Type": "AWS::StepFunctions::StateMachine",
+      "UpdateReplacePolicy": "Delete",
+    },
+    "ImageProcessingWorkflowDistributedMapPolicy0889FC1F": {
+      "Properties": {
+        "PolicyDocument": {
+          "Statement": [
+            {
+              "Action": "states:StartExecution",
+              "Effect": "Allow",
+              "Resource": {
+                "Ref": "ImageProcessingWorkflowDA724ABE",
+              },
+            },
+            {
+              "Action": [
+                "states:DescribeExecution",
+                "states:StopExecution",
+              ],
+              "Effect": "Allow",
+              "Resource": {
+                "Fn::Join": [
+                  "",
+                  [
+                    {
+                      "Ref": "ImageProcessingWorkflowDA724ABE",
+                    },
+                    ":*",
+                  ],
+                ],
+              },
+            },
+          ],
+          "Version": "2012-10-17",
+        },
+        "PolicyName": "ImageProcessingWorkflowDistributedMapPolicy0889FC1F",
+        "Roles": [
+          {
+            "Ref": "ImageProcessingWorkflowRole48F0B8FD",
+          },
+        ],
+      },
+      "Type": "AWS::IAM::Policy",
+    },
+    "ImageProcessingWorkflowLogsF4E626CE": {
+      "DeletionPolicy": "Delete",
+      "Properties": {
+        "RetentionInDays": 30,
+      },
+      "Type": "AWS::Logs::LogGroup",
+      "UpdateReplacePolicy": "Delete",
+    },
+    "ImageProcessingWorkflowRole48F0B8FD": {
+      "Properties": {
+        "AssumeRolePolicyDocument": {
+          "Statement": [
+            {
+              "Action": "sts:AssumeRole",
+              "Effect": "Allow",
+              "Principal": {
+                "Service": "states.amazonaws.com",
+              },
+            },
+          ],
+          "Version": "2012-10-17",
+        },
+      },
+      "Type": "AWS::IAM::Role",
+    },
+    "ImageProcessingWorkflowRoleDefaultPolicy7DEC96BC": {
+      "Properties": {
+        "PolicyDocument": {
+          "Statement": [
+            {
+              "Action": "lambda:InvokeFunction",
+              "Effect": "Allow",
+              "Resource": [
+                {
+                  "Fn::ImportValue": "TestComputeStack:ExportsOutputFnGetAttGenerateStatusReportFunction90F293D1Arn0FA6B7E4",
+                },
+                {
+                  "Fn::Join": [
+                    "",
+                    [
+                      {
+                        "Fn::ImportValue": "TestComputeStack:ExportsOutputFnGetAttGenerateStatusReportFunction90F293D1Arn0FA6B7E4",
+                      },
+                      ":*",
+                    ],
+                  ],
+                },
+              ],
+            },
+            {
+              "Action": "sns:Publish",
+              "Effect": "Allow",
+              "Resource": {
+                "Fn::ImportValue": "TestTopicStack:ExportsOutputRefTestNotificationTopic7FF11CA422EEF074",
+              },
+            },
+            {
+              "Action": "lambda:InvokeFunction",
+              "Effect": "Allow",
+              "Resource": [
+                {
+                  "Fn::ImportValue": "TestComputeStack:ExportsOutputFnGetAttBuildBedrockRequestFunctionDA87F836Arn956C39A4",
+                },
+                {
+                  "Fn::Join": [
+                    "",
+                    [
+                      {
+                        "Fn::ImportValue": "TestComputeStack:ExportsOutputFnGetAttBuildBedrockRequestFunctionDA87F836Arn956C39A4",
+                      },
+                      ":*",
+                    ],
+                  ],
+                },
+              ],
+            },
+            {
+              "Action": "bedrock:InvokeModel",
+              "Effect": "Allow",
+              "Resource": "arn:aws:bedrock:us-east-1::foundation-model/amazon.titan-image-generator-v1",
+            },
+            {
+              "Action": "lambda:InvokeFunction",
+              "Effect": "Allow",
+              "Resource": [
+                {
+                  "Fn::ImportValue": "TestComputeStack:ExportsOutputFnGetAttParseBedrockResponseFunction0CCE54ADArn6C39FB22",
+                },
+                {
+                  "Fn::Join": [
+                    "",
+                    [
+                      {
+                        "Fn::ImportValue": "TestComputeStack:ExportsOutputFnGetAttParseBedrockResponseFunction0CCE54ADArn6C39FB22",
+                      },
+                      ":*",
+                    ],
+                  ],
+                },
+              ],
+            },
+            {
+              "Action": "dynamodb:PutItem",
+              "Effect": "Allow",
+              "Resource": {
+                "Fn::Join": [
+                  "",
+                  [
+                    "arn:",
+                    {
+                      "Ref": "AWS::Partition",
+                    },
+                    ":dynamodb:us-east-1:123456789012:table/",
+                    {
+                      "Fn::ImportValue": "TestStorageStack:ExportsOutputRefStatusTable0F76785B74628FD7",
+                    },
+                  ],
+                ],
+              },
+            },
+            {
+              "Action": [
+                "logs:CreateLogDelivery",
+                "logs:GetLogDelivery",
+                "logs:UpdateLogDelivery",
+                "logs:DeleteLogDelivery",
+                "logs:ListLogDeliveries",
+                "logs:PutResourcePolicy",
+                "logs:DescribeResourcePolicies",
+                "logs:DescribeLogGroups",
+              ],
+              "Effect": "Allow",
+              "Resource": "*",
+            },
+            {
+              "Action": [
+                "xray:PutTraceSegments",
+                "xray:PutTelemetryRecords",
+                "xray:GetSamplingRules",
+                "xray:GetSamplingTargets",
+              ],
+              "Effect": "Allow",
+              "Resource": "*",
+            },
+            {
+              "Action": "lambda:InvokeFunction",
+              "Effect": "Allow",
+              "Resource": [
+                {
+                  "Fn::ImportValue": "TestComputeStack:ExportsOutputFnGetAttBuildBedrockRequestFunctionDA87F836Arn956C39A4",
+                },
+                {
+                  "Fn::Join": [
+                    "",
+                    [
+                      {
+                        "Fn::ImportValue": "TestComputeStack:ExportsOutputFnGetAttBuildBedrockRequestFunctionDA87F836Arn956C39A4",
+                      },
+                      ":*",
+                    ],
+                  ],
+                },
+                {
+                  "Fn::ImportValue": "TestComputeStack:ExportsOutputFnGetAttParseBedrockResponseFunction0CCE54ADArn6C39FB22",
+                },
+                {
+                  "Fn::Join": [
+                    "",
+                    [
+                      {
+                        "Fn::ImportValue": "TestComputeStack:ExportsOutputFnGetAttParseBedrockResponseFunction0CCE54ADArn6C39FB22",
+                      },
+                      ":*",
+                    ],
+                  ],
+                },
+                {
+                  "Fn::ImportValue": "TestComputeStack:ExportsOutputFnGetAttGenerateStatusReportFunction90F293D1Arn0FA6B7E4",
+                },
+                {
+                  "Fn::Join": [
+                    "",
+                    [
+                      {
+                        "Fn::ImportValue": "TestComputeStack:ExportsOutputFnGetAttGenerateStatusReportFunction90F293D1Arn0FA6B7E4",
+                      },
+                      ":*",
+                    ],
+                  ],
+                },
+              ],
+            },
+            {
+              "Action": "dynamodb:PutItem",
+              "Effect": "Allow",
+              "Resource": {
+                "Fn::ImportValue": "TestStorageStack:ExportsOutputFnGetAttStatusTable0F76785BArnA3BA00B8",
+              },
+            },
+            {
+              "Action": [
+                "s3:GetObject",
+                "s3:PutObject",
+                "s3:AbortMultipartUpload",
+                "s3:ListMultipartUploadParts",
+              ],
+              "Effect": "Allow",
+              "Resource": {
+                "Fn::Join": [
+                  "",
+                  [
+                    {
+                      "Fn::ImportValue": "TestStorageStack:ExportsOutputFnGetAttImageBucket97210811ArnBE413D3E",
+                    },
+                    "/*",
+                  ],
+                ],
+              },
+            },
+          ],
+          "Version": "2012-10-17",
+        },
+        "PolicyName": "ImageProcessingWorkflowRoleDefaultPolicy7DEC96BC",
+        "Roles": [
+          {
+            "Ref": "ImageProcessingWorkflowRole48F0B8FD",
+          },
+        ],
+      },
+      "Type": "AWS::IAM::Policy",
+    },
+  },
+  "Rules": {
+    "CheckBootstrapVersion": {
+      "Assertions": [
+        {
+          "Assert": {
+            "Fn::Not": [
+              {
+                "Fn::Contains": [
+                  [
+                    "1",
+                    "2",
+                    "3",
+                    "4",
+                    "5",
+                  ],
+                  {
+                    "Ref": "BootstrapVersion",
+                  },
+                ],
+              },
+            ],
+          },
+          "AssertDescription": "CDK bootstrap stack version 6 required. Please run 'cdk bootstrap' with a recent version of the CDK CLI.",
+        },
+      ],
+    },
+  },
+}
+`;

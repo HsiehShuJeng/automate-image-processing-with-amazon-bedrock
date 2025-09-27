@@ -138,7 +138,7 @@
   - Implement all DefinitionSubstitutions from SAM template
   - _Requirements: Step Functions Definition, Distributed Map Processing_
 
-- [ ] 16. Add orchestration testing and monitoring
+- [x] 16. Add orchestration testing and monitoring
   - Write unit tests for Step Functions state machine definition
   - Test state machine execution with sample input data
   - Test error handling and retry logic in state machine
