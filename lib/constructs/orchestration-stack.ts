@@ -134,9 +134,10 @@ export class OrchestrationStack extends Stack {
         Prompt: stepfunctions.JsonPath.stringAt('$.Prompt'),
         NegativePrompt: stepfunctions.JsonPath.stringAt('$.NegativePrompt'),
         Mode: stepfunctions.JsonPath.stringAt('$.Mode'),
-        Image: stepfunctions.JsonPath.stringAt('$$.Map.Item.Value')
+        Image: stepfunctions.JsonPath.objectAt('$$.Map.Item.Value')
       },
       maxConcurrency: props.config.maxConcurrency,
+      label: 'Map',
       toleratedFailurePercentage: 90,
       resultPath: stepfunctions.JsonPath.DISCARD
     });

@@ -128,7 +128,7 @@
   - Set up IAM execution role with permissions for Bedrock, Lambda, S3, SNS, DynamoDB
   - _Requirements: Orchestration Layer, Step Functions State Machine_
 
-- [ ] 15. Implement Step Functions state machine definition
+- [x] 15. Implement Step Functions state machine definition
   - Create state machine JSON definition with all required states
   - Configure distributed map state for concurrent image processing with MaxConcurrency parameter
   - Implement Bedrock InvokeModel task state with hardcoded us-east-1 model ARN
