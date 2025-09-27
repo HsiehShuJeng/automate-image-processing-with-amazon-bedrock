@@ -1,16 +1,14 @@
-import * as cdk from 'aws-cdk-lib';
 import { Construct } from 'constructs';
-// import * as sqs from 'aws-cdk-lib/aws-sqs';
+import { ImageProcessingStage, ImageProcessingStageProps } from './image-processing-stack';
 
-export class CustomAutomateImageProcessingWithAmazonBedrockStack extends cdk.Stack {
-  constructor(scope: Construct, id: string, props?: cdk.StackProps) {
+/**
+ * Backwards-compatible class name that represents the composed image processing stacks.
+ *
+ * The class now extends {@link ImageProcessingStage} to orchestrate all infrastructure
+ * components defined across individual stacks.
+ */
+export class CustomAutomateImageProcessingWithAmazonBedrockStack extends ImageProcessingStage {
+  constructor(scope: Construct, id: string, props?: ImageProcessingStageProps) {
     super(scope, id, props);
-
-    // The code that defines your stack goes here
-
-    // example resource
-    // const queue = new sqs.Queue(this, 'CustomAutomateImageProcessingWithAmazonBedrockQueue', {
-    //   visibilityTimeout: cdk.Duration.seconds(300)
-    // });
   }
 }
