@@ -44,7 +44,8 @@ ImageProcessingApp
 ├── ApiStack (API Gateway, Lambda functions)
 ├── ComputeStack (Processing Lambda functions)
 ├── OrchestrationStack (Step Functions)
-└── NotificationStack (SNS)
+├── NotificationStack (SNS)
+└── MonitoringStack (Dashboards, alarms)
 ```
 
 ## Components and Interfaces
@@ -58,13 +59,9 @@ ImageProcessingApp
 - **ImagesTable**: DynamoDB table for image metadata with stream enabled
 - **StatusTable**: DynamoDB table for processing status tracking
 
-**Key Interfaces**:
+**Key Interfaces** (see `lib/types/stack-props.ts`):
 ```typescript
-interface StorageStackProps extends StackProps {
-  bucketName: string;
-  imagePrefix: string;
-  processedPrefix: string;
-}
+interface StorageStackProps extends BaseStackProps {}
 
 interface StorageStackOutputs {
   bucket: s3.Bucket;
@@ -88,15 +85,13 @@ interface StorageStackOutputs {
 
 **Key Interfaces**:
 ```typescript
-interface AuthStackProps extends StackProps {
-  userPoolName: string;
-  clientName: string;
-}
+interface AuthStackProps extends BaseStackProps {}
 
 interface AuthStackOutputs {
   userPool: cognito.UserPool;
   userPoolClient: cognito.UserPoolClient;
   authorizer: apigateway.CognitoUserPoolsAuthorizer;
+  userPoolClientSecret?: string;
 }
 ```
 
@@ -115,10 +110,9 @@ interface AuthStackOutputs {
 
 **Key Interfaces**:
 ```typescript
-interface ApiStackProps extends StackProps {
-  authorizer: apigateway.CognitoUserPoolsAuthorizer;
+interface ApiStackProps extends BaseStackProps {
+  userPool: cognito.UserPool;
   imagesTable: dynamodb.Table;
-  apiName: string;
 }
 
 interface ApiStackOutputs {
@@ -144,12 +138,11 @@ interface ApiStackOutputs {
 
 **Key Interfaces**:
 ```typescript
-interface ComputeStackProps extends StackProps {
+interface ComputeStackProps extends BaseStackProps {
   bucket: s3.Bucket;
   imagesTable: dynamodb.Table;
   statusTable: dynamodb.Table;
   snsTopic: sns.Topic;
-  bedrockModelId: string;
 }
 
 interface ComputeStackOutputs {
@@ -174,13 +167,11 @@ interface ComputeStackOutputs {
 
 **Key Interfaces**:
 ```typescript
-interface OrchestrationStackProps extends StackProps {
+interface OrchestrationStackProps extends BaseStackProps {
   computeFunctions: ComputeStackOutputs;
   bucket: s3.Bucket;
   statusTable: dynamodb.Table;
   snsTopic: sns.Topic;
-  bedrockModelId: string;
-  maxConcurrency: number;
 }
 
 interface OrchestrationStackOutputs {
@@ -202,13 +193,34 @@ interface OrchestrationStackOutputs {
 
 **Key Interfaces**:
 ```typescript
-interface NotificationStackProps extends StackProps {
-  topicName: string;
-  notificationEmail: string;
-}
+interface NotificationStackProps extends BaseStackProps {}
 
 interface NotificationStackOutputs {
   topic: sns.Topic;
+}
+```
+
+### 7. Monitoring Stack (`lib/constructs/monitoring-stack.ts`)
+
+**Purpose**: Centralizes dashboards and alarms for the image processing workflow.
+
+**Components**:
+- **CloudWatch Dashboard**: Lambda, Step Functions, API Gateway, and S3 widgets
+- **CloudWatch Alarms**: Error alarms routed to the shared SNS topic
+
+**Key Interfaces**:
+```typescript
+interface MonitoringStackProps extends BaseStackProps {
+  computeFunctions: ComputeStackOutputs;
+  stateMachine: stepfunctions.StateMachine;
+  api: apigateway.RestApi;
+  snsTopic: sns.Topic;
+  bucket: s3.Bucket;
+}
+
+interface MonitoringStackOutputs {
+  dashboard: cloudwatch.Dashboard;
+  alarms: cloudwatch.Alarm[];
 }
 ```
 
@@ -220,26 +232,26 @@ interface NotificationStackOutputs {
 interface ImageProcessingConfig {
   // API Configuration
   apiName: string;
-  
+
   // Storage Configuration
   bucketName: string;
   imagePrefix: string;
-  processedPrefix: string;
-  
+  generatedImagePrefix: string;
+  statusReportPrefix: string;
+
   // Bedrock Configuration
   bedrockModelId: string;
   maxConcurrency: number;
-  
+
   // Notification Configuration
   snsTopicName: string;
   notificationEmail: string;
-  
+
   // Status Report Configuration
   statusReportUrlExpiration: number;
-  
-  // Authentication Configuration
-  userPoolName: string;
-  clientName: string;
+
+  // Step Functions Configuration
+  imageProcessingWorkflowName: string;
 }
 ```
 
@@ -274,10 +286,10 @@ interface StatusRecord {
 
 ### Lambda Function Error Handling
 
-1. **Structured Error Responses**: All Lambda functions return consistent error structures
-2. **Retry Logic**: Implement exponential backoff for transient failures
-3. **Dead Letter Queues**: Configure DLQs for failed Lambda invocations
-4. **CloudWatch Alarms**: Monitor error rates and trigger notifications
+1. **Structured Logging & Metrics**: Lambda Powertools provides structured logs, metrics, and cold-start annotations
+2. **Tracing**: X-Ray tracing enabled for all compute Lambdas to capture end-to-end failures
+3. **Graceful Error Responses**: Handlers surface typed exceptions consumed by Step Functions and API integrations
+4. **CloudWatch Alarms**: Monitoring stack raises alarms on Lambda error metrics via SNS notifications
 
 ### Step Functions Error Handling
 
@@ -354,16 +366,17 @@ interface StatusRecord {
 
 ### Environment Configuration
 
-1. **Parameter Store**: Store configuration parameters in SSM Parameter Store
-2. **Environment Variables**: Use environment-specific variables
-3. **Stack Naming**: Implement consistent naming conventions
-4. **Resource Tagging**: Apply consistent tags for cost tracking and management
+1. **Environment JSON Files**: Define per-environment overrides in `config/environments/*.json`
+2. **Context Loading**: Use `loadDeploymentTargets` to merge file-based config with CDK context (`imageProcessingApp`)
+3. **Stack Naming**: Derive stack prefixes from environment definition (`stackNamePrefix`/`stageId`)
+4. **Resource Tagging**: Apply tags from environment JSON plus shared defaults across stacks
 
 ### CI/CD Pipeline
 
 1. **Build Stage**: Compile TypeScript and run tests
 2. **Security Scan**: Run CDK Nag and security checks
 3. **Deployment Stage**: Deploy to staging and production environments
+   - `scripts/deploy.js <environment>` defaults to the AWS CLI `default` profile, applies stack policies, and performs post-deploy health checks
 4. **Validation Stage**: Run integration tests post-deployment
 
 ### Rollback Strategy

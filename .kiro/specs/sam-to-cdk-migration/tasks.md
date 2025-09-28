@@ -230,13 +230,13 @@
 
 - [x] 26. Create deployment configuration and scripts
   - Implement environment-specific configuration files
-  - Create deployment scripts for different environments (dev, staging, prod)
+  - Provide a deployment script that defaults to the AWS CLI `default` profile but allows overrides
   - Set up parameter validation and environment variable management
-  - Configure CloudFormation stack policies and rollback settings
-  - Implement deployment health checks and validation
+  - Configure post-deploy CloudFormation stack policies and rollback safeguards
+  - Implement scripted deployment health checks and validation
   - _Requirements: Deployment Strategy, Environment Configuration_
 
-- [ ] 27. Add monitoring and observability configuration
+- [x] 27. Add monitoring and observability configuration
   - Configure CloudWatch dashboards for application monitoring
   - Set up CloudWatch alarms for critical metrics and error rates
   - Implement custom metrics for business logic monitoring

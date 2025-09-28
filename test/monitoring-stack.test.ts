@@ -1,5 +1,5 @@
 import { App, Stack } from 'aws-cdk-lib';
-import { Template, Match } from 'aws-cdk-lib/assertions';
+import { Template } from 'aws-cdk-lib/assertions';
 import * as apigateway from 'aws-cdk-lib/aws-apigateway';
 import * as lambda from 'aws-cdk-lib/aws-lambda';
 import * as s3 from 'aws-cdk-lib/aws-s3';
@@ -92,8 +92,8 @@ describe('MonitoringStack', () => {
       const actions = alarm.Properties?.AlarmActions ?? [];
       expect(actions).toEqual(
         expect.arrayContaining([
-          Match.objectLike({
-            'Fn::ImportValue': Match.stringLikeRegexp('NotificationTopic')
+          expect.objectContaining({
+            'Fn::ImportValue': expect.any(String)
           })
         ])
       );

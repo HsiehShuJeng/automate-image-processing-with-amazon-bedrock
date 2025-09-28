@@ -40,6 +40,11 @@ Migrate the existing SAM-based image processing application to AWS CDK TypeScrip
 - **SNS Topic**: Email notifications for completion
 - **SNS Subscription**: Email endpoint
 
+### 7. Monitoring & Observability
+- **CloudWatch Dashboard**: Aggregated Lambda, API, Step Functions, and S3 metrics
+- **CloudWatch Alarms**: Error-rate alerts routed to the shared SNS topic
+- **Powertools Instrumentation**: Structured logging, metrics, and tracing for compute Lambdas
+
 ## CDK Implementation Requirements
 
 ### 1. Project Structure
@@ -51,11 +56,23 @@ lib/
 │   ├── api-stack.ts
 │   ├── compute-stack.ts
 │   ├── orchestration-stack.ts
-│   └── notification-stack.ts
+│   ├── notification-stack.ts
+│   └── monitoring-stack.ts
 ├── image-processing-stack.ts
-└── app.ts
+├── types/
+│   ├── config.ts
+│   └── stack-props.ts
+└── utils/
+    └── app-config.ts
 bin/
 └── image-processing-app.ts
+config/
+└── environments/
+    ├── dev.json
+    ├── staging.json
+    └── prod.json
+scripts/
+└── deploy.js
 ```
 
 ### 2. Configuration Parameters
@@ -105,9 +122,11 @@ bin/
 - **Deployment Strategy**: Separate deployments with method dependencies
 
 ### 10. Environment Variables Mapping
-- STATE_MACHINE_IMAGE_PROCESSING_ARN, INPUT_BUCKET, IMAGE_PREFIX
+- STATE_MACHINE_IMAGE_PROCESSING_NAME, INPUT_BUCKET, IMAGE_PREFIX
 - GENERATED_IMAGE_PREFIX, STATUS_REPORT_PREFIX
 - STATUS_TABLE, STATUS_REPORT_URL_EXPIRATION
+- POWERTOOLS_SERVICE_NAME, POWERTOOLS_METRICS_NAMESPACE
+- NOTIFICATION_TOPIC_ARN, NOTIFICATION_TOPIC_NAME (from Lambda-to-SNS construct)
 
 ### 11. Cognito Configuration Specifics
 - Password policy with complexity requirements
@@ -127,9 +146,10 @@ bin/
 - Configure proper CORS for API Gateway
 
 ### 3. Monitoring & Observability
-- Enable X-Ray tracing for Step Functions
-- Configure CloudWatch logging for Lambda functions
-- Set up appropriate log retention policies
+- Instrument compute Lambdas with AWS Lambda Powertools (logs, metrics, tracing)
+- Enable X-Ray tracing for Step Functions and Lambda
+- Configure CloudWatch logging and log retention for Lambda functions
+- Provide centralized dashboards and alarms via MonitoringStack
 
 ### 4. Cost Optimization
 - Use PAY_PER_REQUEST billing for DynamoDB
@@ -148,12 +168,12 @@ bin/
 - Python 3.13 runtime for Lambda functions
 
 ## Deployment Strategy
-1. Create new CDK application
-2. Implement constructs incrementally
-3. Test each component independently
-4. Perform end-to-end testing
-5. Update UI configuration
-6. Deploy to production environment
+1. Define environment settings in `config/environments/*.json` and surface shared defaults via `cdk.json` context (`imageProcessingApp`)
+2. Implement constructs incrementally and validate with targeted Jest/CDK Nag suites
+3. Use `node scripts/deploy.js <environment>` (defaults to AWS CLI `default` profile) to deploy stacks with automatic stack-policy protection and health checks
+4. Perform end-to-end testing before promoting to the next environment
+5. Update Streamlit UI configuration once API endpoints are confirmed
+6. Document production deployment in `docs/production-checklist.md`
 
 ## Target Deployment Region
 - **Primary Region**: Asia Pacific (Tokyo) - ap-northeast-1
