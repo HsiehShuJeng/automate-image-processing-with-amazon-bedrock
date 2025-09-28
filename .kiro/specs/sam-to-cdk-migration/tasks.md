@@ -210,7 +210,7 @@
 
 ## Security and Compliance
 
-- [ ] 24. Implement comprehensive IAM policies
+- [x] 24. Implement comprehensive IAM policies
   - Create least-privilege IAM policies for all Lambda functions
   - Configure Step Functions execution role with minimal required permissions
   - Set up API Gateway service roles for DynamoDB and Rekognition access
