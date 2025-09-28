@@ -3,10 +3,12 @@
 ## Deployment Workflow
 1. Ensure AWS credentials for the target account are exported in the shell.
 2. Choose the deployment environment (`dev`, `staging`, `prod`, etc.).
-3. Run `yarn build` to compile TypeScript assets.
-4. Deploy with `node scripts/deploy.js <environment>`.
+3. Ensure your AWS CLI profile is set—by default the deployment script uses the `default` profile (override by exporting `AWS_PROFILE`).
+4. Run `yarn build` to compile TypeScript assets.
+5. Deploy with `node scripts/deploy.js <environment>`.
    - The script passes `--context deployEnvironments=<environment>` to CDK, which loads the environment definition from `config/environments/<environment>.json`.
-5. Verify CloudFormation stack events complete without errors. Termination protection is controlled per environment configuration.
+   - After deployment, the script applies a CloudFormation stack policy to protect critical storage resources and verifies stack health via the AWS CLI.
+6. Verify CloudFormation stack events complete without errors. Termination protection is controlled per environment configuration.
 
 ## Post-Deployment Validation
 - Run `yarn test` to confirm unit tests and assertions pass.

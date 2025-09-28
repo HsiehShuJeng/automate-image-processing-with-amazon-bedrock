@@ -26,6 +26,7 @@ This document records the design decisions and implementation updates completed 
 - Added environment JSON descriptors in `config/environments/` with account, region, tagging, and configuration overrides.
 - Updated `loadDeploymentTargets` to read context + file based environments, including termination protection settings.
 - Added `scripts/deploy.js` to deploy a specific environment (`node scripts/deploy.js dev`).
+- Deployment script now defaults to the `default` AWS CLI profile, applies stack policies to protect storage/notification resources, and performs post-deploy health checks via the AWS CLI.
 
 ## Documentation & Runbooks
 - See `docs/operations-runbook.md` for deployment and troubleshooting procedures.
