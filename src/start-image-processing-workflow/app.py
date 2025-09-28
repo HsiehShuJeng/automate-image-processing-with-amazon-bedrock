@@ -1,20 +1,20 @@
 #!/usr/bin/env python3
-"""
-Lambda function to start image processing workflow from DynamoDB stream events.
+"""Lambda entry point for starting the image processing workflow."""
 
-This function is triggered by DynamoDB stream events and starts a Step Functions
-state machine execution for image processing workflows.
-"""
+from __future__ import annotations
 
-import boto3
 import json
-import logging
 import os
 from typing import Any, Dict
 
-# Configure logging
-logging.basicConfig(level=logging.INFO)
-logger = logging.getLogger(__name__)
+import boto3
+from aws_lambda_powertools.metrics import MetricUnit
+from image_processing_common.observability import (
+    correlation_paths,
+    logger,
+    metrics,
+    tracer,
+)
 
 # Initialize AWS clients
 step_function = boto3.client("stepfunctions")
@@ -26,37 +26,64 @@ IMAGE_PREFIX = os.environ.get('IMAGE_PREFIX')
 GENERATED_IMAGE_PREFIX = os.environ.get('GENERATED_IMAGE_PREFIX')
 STATUS_REPORT_PREFIX = os.environ.get('STATUS_REPORT_PREFIX')
 
+metrics.set_default_dimensions(service="image-processing-workflow")
 
+
+def _extract_first_record(event: Dict[str, Any]) -> Dict[str, Any]:
+    """Return the first DynamoDB change record from the stream event."""
+
+    records = event.get('Records', [])
+    if not records:
+        raise ValueError('No DynamoDB stream records found in event payload')
+
+    dynamodb_payload = records[0].get('dynamodb')
+    if not dynamodb_payload:
+        raise ValueError('Missing DynamoDB payload in stream record')
+
+    return dynamodb_payload
+
+
+def _set_correlation_context(event: Dict[str, Any]) -> None:
+    """Attach correlation identifiers for structured logging and tracing."""
+
+    correlation_id = event.get('Records', [{}])[0].get('eventID')
+    if correlation_id:
+        logger.set_correlation_id(correlation_id)
+        logger.append_keys(correlation_id=correlation_id)
+        tracer.put_annotation('CorrelationId', correlation_id)
+
+
+@logger.inject_lambda_context(correlation_id_path=correlation_paths.DYNAMODB_STREAM)
+@tracer.capture_lambda_handler
+@metrics.log_metrics(capture_cold_start_metric=True)
 def lambda_handler(event: Dict[str, Any], context: Any) -> Dict[str, Any]:
-    """
-    Lambda handler for starting image processing workflow.
+    """Start the Step Functions workflow based on DynamoDB stream events."""
 
-    Args:
-        event: DynamoDB stream event containing record changes
-        context: Lambda context object
+    _set_correlation_context(event)
 
-    Returns:
-        Dictionary containing execution status and details
-    """
     try:
-        logger.info('Starting image processing workflow')
-        
-        dynamodb_item = event['Records'][0]['dynamodb']
-        
+        dynamodb_item = _extract_first_record(event)
         record = build_workflow_input(dynamodb_item)
-        
-        # Start Step Functions execution
+
+        tracer.put_annotation('WorkflowId', record['Id'])
+        tracer.put_metadata(key='WorkflowInput', value=record)
+
         response = start_step_function_execution(record)
-        
-        logger.info(f"Started workflow execution: {response.get('executionArn')}")
-        
+
+        metrics.add_metric(name='WorkflowsStarted', unit=MetricUnit.Count, value=1)
+        logger.info('Successfully started image processing workflow', extra={
+            'executionArn': response.get('executionArn'),
+            'workflowId': record['Id']
+        })
+
         return {
             'statusCode': 200,
             'executionArn': response.get('executionArn')
         }
-        
-    except Exception as e:
-        logger.error(f"Failed to start image processing workflow: {e}")
+
+    except Exception as error:
+        metrics.add_metric(name='WorkflowStartFailures', unit=MetricUnit.Count, value=1)
+        logger.error('Failed to start image processing workflow', extra={'error': str(error)}, exc_info=True)
         raise
 
 
@@ -112,5 +139,5 @@ def start_step_function_execution(record: Dict[str, Any]) -> Dict[str, Any]:
         stateMachineArn=STATE_MACHINE_IMAGE_PROCESSING_ARN,
         input=json.dumps(record)
     )
-    
+
     return response

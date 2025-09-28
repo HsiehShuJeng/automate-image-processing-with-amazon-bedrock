@@ -10,8 +10,9 @@ import * as dynamodb from 'aws-cdk-lib/aws-dynamodb';
 import * as cognito from 'aws-cdk-lib/aws-cognito';
 import * as apigateway from 'aws-cdk-lib/aws-apigateway';
 import * as lambda from 'aws-cdk-lib/aws-lambda';
-import * as stepfunctions from 'aws-cdk-lib/aws-stepfunctions';
 import * as sns from 'aws-cdk-lib/aws-sns';
+import * as stepfunctions from 'aws-cdk-lib/aws-stepfunctions';
+import * as cloudwatch from 'aws-cdk-lib/aws-cloudwatch';
 import { ImageProcessingConfig } from './config';
 
 /**
@@ -113,4 +114,23 @@ export interface NotificationStackProps extends BaseStackProps {}
  */
 export interface NotificationStackOutputs {
   readonly topic: sns.Topic;
+}
+
+/**
+ * Props for Monitoring Stack.
+ */
+export interface MonitoringStackProps extends BaseStackProps {
+  readonly computeFunctions: ComputeStackOutputs;
+  readonly stateMachine: stepfunctions.StateMachine;
+  readonly api: apigateway.RestApi;
+  readonly snsTopic: sns.Topic;
+  readonly bucket: s3.Bucket;
+}
+
+/**
+ * Outputs from Monitoring Stack.
+ */
+export interface MonitoringStackOutputs {
+  readonly dashboard: cloudwatch.Dashboard;
+  readonly alarms: cloudwatch.Alarm[];
 }

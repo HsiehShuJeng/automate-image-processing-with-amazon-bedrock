@@ -9,10 +9,14 @@ import { Duration, Size, Stack } from 'aws-cdk-lib';
 import * as iam from 'aws-cdk-lib/aws-iam';
 import * as lambda from 'aws-cdk-lib/aws-lambda';
 import * as lambdaEventSources from 'aws-cdk-lib/aws-lambda-event-sources';
+import * as logs from 'aws-cdk-lib/aws-logs';
 import { LambdaToSns } from '@aws-solutions-constructs/aws-lambda-sns';
 import { Construct } from 'constructs';
 import { ComputeStackProps, ComputeStackOutputs } from '../types';
 import { applyCdkNag, SecuritySuppressions } from '../utils';
+import { join } from 'path';
+import { execSync } from 'child_process';
+import { mkdirSync } from 'fs';
 
 export class ComputeStack extends Stack {
   public readonly outputs: ComputeStackOutputs;
@@ -20,17 +24,59 @@ export class ComputeStack extends Stack {
   constructor(scope: Construct, id: string, props: ComputeStackProps) {
     super(scope, id, props);
 
-    // AWS Lambda Powertools Layer (official AWS-provided layer)
-    const powertoolsLayer = lambda.LayerVersion.fromLayerVersionArn(
-      this,
-      'PowertoolsLayer',
-      `arn:aws:lambda:${this.region}:017000801446:layer:AWSLambdaPowertoolsPythonV2:68`
+    const powertoolsLayerSourcePath = join(__dirname, '..', '..', 'layers', 'powertools');
+    const bundlingDisabled = process.env.CDK_DISABLE_POWETOOLS_BUNDLING === 'true';
+    const powertoolsLayerCode = lambda.Code.fromAsset(
+      powertoolsLayerSourcePath,
+      bundlingDisabled
+        ? {
+            exclude: ['*.pyc', '__pycache__']
+          }
+        : {
+            bundling: {
+              local: {
+                tryBundle(outputDir: string): boolean {
+                  const outputPythonPath = join(outputDir, 'python');
+                  mkdirSync(outputPythonPath, { recursive: true });
+                  try {
+                    execSync(`pip3 install -r requirements.txt -t "${outputPythonPath}"`, {
+                      cwd: powertoolsLayerSourcePath,
+                      stdio: 'inherit'
+                    });
+                  } catch (error) {
+                    console.error('Local installation of AWS Lambda Powertools failed.', error);
+                    return false;
+                  }
+                  return true;
+                }
+              },
+              image: lambda.Runtime.PYTHON_3_13.bundlingImage,
+              command: [
+                'bash',
+                '-c',
+                'pip install -r requirements.txt -t /asset-output/python'
+              ]
+            }
+          }
     );
 
+    const powertoolsLayer = new lambda.LayerVersion(this, 'PowertoolsLayer', {
+      compatibleRuntimes: [lambda.Runtime.PYTHON_3_13],
+      description: 'Shared AWS Lambda Powertools dependencies',
+      code: powertoolsLayerCode
+    });
+
+    const commonUtilitiesLayer = new lambda.LayerVersion(this, 'CommonUtilitiesLayer', {
+      compatibleRuntimes: [lambda.Runtime.PYTHON_3_13],
+      description: 'Shared utilities for image processing Lambdas',
+      code: lambda.Code.fromAsset(join(__dirname, '..', '..', 'layers', 'common-utils'))
+    });
+
+    const stateMachineName = props.config.imageProcessingWorkflowName;
     const stateMachineArn = this.formatArn({
       service: 'states',
       resource: 'stateMachine',
-      resourceName: props.config.imageProcessingWorkflowName
+      resourceName: stateMachineName
     });
 
     // Create StartImageProcessingWorkflowFunction with DynamoDB stream trigger
@@ -40,9 +86,11 @@ export class ComputeStack extends Stack {
       code: lambda.Code.fromAsset('src/start-image-processing-workflow'),
       timeout: Duration.seconds(120), // Specific timeout per SAM template
       memorySize: 128,
-      layers: [powertoolsLayer],
+      tracing: lambda.Tracing.ACTIVE,
+      logRetention: logs.RetentionDays.ONE_MONTH,
+      layers: [powertoolsLayer, commonUtilitiesLayer],
       environment: {
-        STATE_MACHINE_IMAGE_PROCESSING_ARN: stateMachineArn,
+        STATE_MACHINE_IMAGE_PROCESSING_NAME: stateMachineName,
         INPUT_BUCKET: props.bucket.bucketName,
         IMAGE_PREFIX: props.config.imagePrefix,
         GENERATED_IMAGE_PREFIX: props.config.generatedImagePrefix,
@@ -75,7 +123,9 @@ export class ComputeStack extends Stack {
       timeout: Duration.seconds(900), // Global timeout per SAM template
       memorySize: 512,
       ephemeralStorageSize: Size.mebibytes(1024),
-      layers: [powertoolsLayer],
+      tracing: lambda.Tracing.ACTIVE,
+      logRetention: logs.RetentionDays.ONE_MONTH,
+      layers: [powertoolsLayer, commonUtilitiesLayer],
       environment: {
         POWERTOOLS_SERVICE_NAME: 'image-processing',
         POWERTOOLS_METRICS_NAMESPACE: 'ImageProcessing'
@@ -90,7 +140,9 @@ export class ComputeStack extends Stack {
       timeout: Duration.seconds(900), // Global timeout per SAM template
       memorySize: 512,
       ephemeralStorageSize: Size.mebibytes(1024),
-      layers: [powertoolsLayer],
+      tracing: lambda.Tracing.ACTIVE,
+      logRetention: logs.RetentionDays.ONE_MONTH,
+      layers: [powertoolsLayer, commonUtilitiesLayer],
       environment: {
         POWERTOOLS_SERVICE_NAME: 'image-processing',
         POWERTOOLS_METRICS_NAMESPACE: 'ImageProcessing'
@@ -104,7 +156,9 @@ export class ComputeStack extends Stack {
       code: lambda.Code.fromAsset('src/generate-status-report'),
       timeout: Duration.seconds(900), // Global timeout per SAM template
       memorySize: 128,
-      layers: [powertoolsLayer],
+      tracing: lambda.Tracing.ACTIVE,
+      logRetention: logs.RetentionDays.ONE_MONTH,
+      layers: [powertoolsLayer, commonUtilitiesLayer],
       environment: {
         STATUS_TABLE: props.statusTable.tableName,
         STATUS_REPORT_URL_EXPIRATION: props.config.statusReportUrlExpiration.toString(),
@@ -117,7 +171,7 @@ export class ComputeStack extends Stack {
     props.bucket.grantReadWrite(buildRequestFunction);
     props.bucket.grantReadWrite(parseResponseFunction);
     props.bucket.grantReadWrite(statusReportFunction);
-    props.statusTable.grantReadData(statusReportFunction);
+    props.statusTable.grantReadWriteData(statusReportFunction);
 
     new LambdaToSns(this, 'StatusReportNotifications', {
       existingLambdaObj: statusReportFunction,

@@ -1,0 +1,15 @@
+{
+  "account": "123456789012",
+  "region": "us-east-1",
+  "stackNamePrefix": "ImageProcessingStaging",
+  "stageId": "ImageProcessingStaging",
+  "config": {
+    "notificationEmail": "staging-notifications@example.com",
+    "maxConcurrency": 5
+  },
+  "tags": {
+    "Environment": "staging",
+    "Project": "AutomateImageProcessing"
+  },
+  "terminationProtection": true
+}

@@ -5,10 +5,13 @@
  */
 
 import { App, Environment } from 'aws-cdk-lib';
+import { existsSync, readdirSync, readFileSync } from 'fs';
+import { join, parse } from 'path';
 import { DEFAULT_CONFIG, ImageProcessingConfig, validateConfig } from '../types';
 
 const CONTEXT_KEY = 'imageProcessingApp';
 const DEFAULT_REGION = 'ap-northeast-1';
+const ENVIRONMENT_CONFIG_DIRECTORY = join(__dirname, '..', '..', 'config', 'environments');
 
 interface ImageProcessingAppContext {
   readonly defaultEnvironment?: string;
@@ -24,6 +27,7 @@ interface EnvironmentDefinition {
   readonly stackNamePrefix?: string;
   readonly config?: Partial<ImageProcessingConfig>;
   readonly tags?: Record<string, string>;
+  readonly terminationProtection?: boolean;
 }
 
 export interface DeploymentTarget {
@@ -33,6 +37,7 @@ export interface DeploymentTarget {
   readonly stageId: string;
   readonly stackNamePrefix?: string;
   readonly tags: Record<string, string>;
+  readonly terminationProtection: boolean;
 }
 
 /**
@@ -43,7 +48,11 @@ export interface DeploymentTarget {
  */
 export function loadDeploymentTargets(app: App): DeploymentTarget[] {
   const appContext = (app.node.tryGetContext(CONTEXT_KEY) ?? {}) as ImageProcessingAppContext;
-  const environmentDefinitions = appContext.environments ?? {};
+  const fileDefinitions = loadEnvironmentDefinitionsFromDirectory();
+  const environmentDefinitions = {
+    ...fileDefinitions,
+    ...(appContext.environments ?? {})
+  };
 
   const deploymentOrder = parseEnvironmentOrder(
     app.node.tryGetContext('deployEnvironments') ?? appContext.deployEnvironments,
@@ -69,8 +78,9 @@ export function loadDeploymentTargets(app: App): DeploymentTarget[] {
     const stageId = definition.stageId ?? createStageId(environmentName);
     const stackNamePrefix = definition.stackNamePrefix ?? stageId;
     const tags = resolveTags(environmentName, appContext.tags, definition.tags);
+    const terminationProtection = definition.terminationProtection ?? false;
 
-    return { name: environmentName, env, config, stageId, stackNamePrefix, tags };
+    return { name: environmentName, env, config, stageId, stackNamePrefix, tags, terminationProtection };
   });
 }
 
@@ -156,4 +166,32 @@ function toPascalCase(value: string): string {
     .filter((part) => part.length > 0)
     .map((part) => part.charAt(0).toUpperCase() + part.slice(1))
     .join('');
+}
+
+function loadEnvironmentDefinitionsFromDirectory(): Record<string, EnvironmentDefinition> {
+  if (!existsSync(ENVIRONMENT_CONFIG_DIRECTORY)) {
+    return {};
+  }
+
+  const definitions: Record<string, EnvironmentDefinition> = {};
+  const files = readdirSync(ENVIRONMENT_CONFIG_DIRECTORY).filter((file) => file.endsWith('.json'));
+
+  for (const file of files) {
+    const absolutePath = join(ENVIRONMENT_CONFIG_DIRECTORY, file);
+    try {
+      const content = readFileSync(absolutePath, 'utf-8');
+      const parsed = JSON.parse(content) as EnvironmentDefinition;
+      const environmentName = parse(file).name;
+
+      definitions[environmentName] = {
+        ...parsed,
+        stageId: parsed.stageId ?? createStageId(environmentName)
+      };
+    } catch (error) {
+      const message = error instanceof Error ? error.message : String(error);
+      throw new Error(`Failed to load environment configuration '${file}': ${message}`);
+    }
+  }
+
+  return definitions;
 }

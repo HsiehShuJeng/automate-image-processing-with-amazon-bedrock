@@ -8,6 +8,7 @@
 import { Stack } from 'aws-cdk-lib';
 import * as apigateway from 'aws-cdk-lib/aws-apigateway';
 import * as iam from 'aws-cdk-lib/aws-iam';
+import * as logs from 'aws-cdk-lib/aws-logs';
 import { Construct } from 'constructs';
 import { ApiStackProps, ApiStackOutputs } from '../types';
 import { applyCdkNag, SecuritySuppressions } from '../utils';
@@ -19,6 +20,10 @@ export class ApiStack extends Stack {
     super(scope, id, props);
 
     // Create REST API
+    const accessLogGroup = new logs.LogGroup(this, 'ApiAccessLogs', {
+      retention: logs.RetentionDays.ONE_MONTH
+    });
+
     const api = new apigateway.RestApi(this, 'Api', {
       restApiName: props.config.apiName,
       description: 'Image Processing API with direct service integrations',
@@ -26,7 +31,33 @@ export class ApiStack extends Stack {
         allowOrigins: apigateway.Cors.ALL_ORIGINS,
         allowMethods: apigateway.Cors.ALL_METHODS,
         allowHeaders: ['Content-Type', 'X-Amz-Date', 'Authorization', 'X-Api-Key']
-      }
+      },
+      deployOptions: {
+        accessLogDestination: new apigateway.LogGroupLogDestination(accessLogGroup),
+        accessLogFormat: apigateway.AccessLogFormat.jsonWithStandardFields({
+          caller: true,
+          httpMethod: true,
+          ip: true,
+          protocol: true,
+          requestTime: true,
+          resourcePath: true,
+          responseLength: true,
+          status: true,
+          user: true
+        }),
+        tracingEnabled: true,
+        loggingLevel: apigateway.MethodLoggingLevel.INFO,
+        dataTraceEnabled: false,
+        metricsEnabled: true,
+        methodOptions: {
+          '/*/*': {
+            throttlingRateLimit: 100,
+            throttlingBurstLimit: 50
+          }
+        }
+      },
+      cloudWatchRole: true,
+      deploy: true
     });
 
     // Create Cognito authorizer
@@ -95,7 +126,7 @@ export class ApiStack extends Stack {
     const imagesResource = api.root.addResource('images');
     const vtlTemplate = `#set($inputRoot = $input.path('$'))
 {
-  "TableName": "ImagesTable",
+  "TableName": "${props.imagesTable.tableName}",
   "Item": {
     "Id": { "S": "$inputRoot.Id" },
     "ImageS3Prefix": { "S": "$inputRoot.ImageS3Prefix" },

@@ -16,7 +16,8 @@ deploymentTargets.forEach((target) => {
     config: target.config,
     env: target.env,
     environmentName: target.name,
-    stackNamePrefix: target.stackNamePrefix
+    stackNamePrefix: target.stackNamePrefix,
+    terminationProtection: target.terminationProtection
   });
 
   Object.entries(target.tags).forEach(([key, value]) => {
@@ -29,6 +30,7 @@ deploymentTargets.forEach((target) => {
     stage.notificationStack,
     stage.computeStack,
     stage.orchestrationStack,
-    stage.apiStack
+    stage.apiStack,
+    stage.monitoringStack
   ].forEach(applyCdkNag);
 });

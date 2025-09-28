@@ -44,6 +44,7 @@ class StartImageProcessingWorkflowTests(TestCase):
         os.environ['IMAGE_PREFIX'] = 'source/'
         os.environ['GENERATED_IMAGE_PREFIX'] = 'generated/'
         os.environ['STATUS_REPORT_PREFIX'] = 'status/'
+        os.environ.setdefault('POWERTOOLS_METRICS_NAMESPACE', 'ImageProcessing')
         self.module = load_module_from_path('start_image_processing_workflow', MODULE_PATH)
 
     def test_build_workflow_input_constructs_expected_payload(self) -> None:
@@ -61,7 +62,7 @@ class StartImageProcessingWorkflowTests(TestCase):
 
     def test_lambda_handler_invokes_step_functions(self) -> None:
         dynamodb_item = _sample_dynamodb_item()
-        event = {'Records': [{'dynamodb': dynamodb_item}]}
+        event = {'Records': [{'eventID': 'event-1', 'dynamodb': dynamodb_item}]}
 
         execution_response = {'executionArn': 'arn:aws:states:region:123:execution'}
         with mock.patch.object(self.module, 'start_step_function_execution', return_value=execution_response) as start_mock:
@@ -88,3 +89,7 @@ class StartImageProcessingWorkflowTests(TestCase):
 
         mock_client.start_execution.assert_called_once()
         self.assertEqual(response['executionArn'], 'arn:aws:states:region:123:execution')
+
+    def test_extract_first_record_handles_missing_dynamodb_payload(self) -> None:
+        with self.assertRaises(ValueError):
+            self.module._extract_first_record({'Records': [{'eventID': 'event-1'}]})

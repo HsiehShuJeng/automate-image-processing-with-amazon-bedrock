@@ -37,6 +37,12 @@ class _Logger:
     def warning(self, *args: Any, **kwargs: Any) -> None:
         pass
 
+    def append_keys(self, *args: Any, **kwargs: Any) -> None:
+        pass
+
+    def set_correlation_id(self, *args: Any, **kwargs: Any) -> None:
+        pass
+
     def inject_lambda_context(self, *args: Any, **kwargs: Any) -> Callable[..., Any]:
         return _noop_decorator
 
@@ -51,12 +57,21 @@ class _Tracer:
     def capture_method(self, func: Optional[Callable[..., Any]] = None, *args: Any, **kwargs: Any) -> Callable[..., Any]:
         return _noop_decorator(func, *args, **kwargs)
 
+    def put_annotation(self, *args: Any, **kwargs: Any) -> None:
+        pass
+
+    def put_metadata(self, *args: Any, **kwargs: Any) -> None:
+        pass
+
 
 class _Metrics:
     def __init__(self, *args: Any, **kwargs: Any) -> None:  # noqa: D401
         pass
 
     def add_metric(self, *args: Any, **kwargs: Any) -> None:
+        pass
+
+    def set_default_dimensions(self, *args: Any, **kwargs: Any) -> None:
         pass
 
     def log_metrics(self, func: Optional[Callable[..., Any]] = None, *args: Any, **kwargs: Any) -> Callable[..., Any]:
@@ -82,7 +97,10 @@ def _ensure_powertools_stubs() -> None:
     metrics_module.MetricUnit = _MetricUnit  # type: ignore[attr-defined]
 
     logging_module = types.ModuleType('aws_lambda_powertools.logging')
-    correlation_paths = types.SimpleNamespace(API_GATEWAY_REST='API_GATEWAY_REST')
+    correlation_paths = types.SimpleNamespace(
+        API_GATEWAY_REST='API_GATEWAY_REST',
+        DYNAMODB_STREAM='DYNAMODB_STREAM'
+    )
     logging_module.correlation_paths = correlation_paths  # type: ignore[attr-defined]
 
     powertools_module.metrics = metrics_module  # type: ignore[attr-defined]
@@ -91,6 +109,25 @@ def _ensure_powertools_stubs() -> None:
     sys.modules['aws_lambda_powertools'] = powertools_module
     sys.modules['aws_lambda_powertools.metrics'] = metrics_module
     sys.modules['aws_lambda_powertools.logging'] = logging_module
+
+
+def _ensure_common_layer_stub() -> None:
+    """Register stubs for the common utilities layer module."""
+    if 'image_processing_common.observability' in sys.modules:
+        return
+
+    common_root = types.ModuleType('image_processing_common')
+    observability_module = types.ModuleType('image_processing_common.observability')
+    observability_module.logger = _Logger()  # type: ignore[attr-defined]
+    observability_module.tracer = _Tracer()  # type: ignore[attr-defined]
+    observability_module.metrics = _Metrics()  # type: ignore[attr-defined]
+    observability_module.correlation_paths = types.SimpleNamespace(
+        API_GATEWAY_REST='API_GATEWAY_REST',
+        DYNAMODB_STREAM='DYNAMODB_STREAM'
+    )
+
+    sys.modules['image_processing_common'] = common_root
+    sys.modules['image_processing_common.observability'] = observability_module
 
 
 def _ensure_boto3_stub() -> None:
@@ -113,5 +150,5 @@ def _ensure_boto3_stub() -> None:
 
 
 _ensure_powertools_stubs()
+_ensure_common_layer_stub()
 _ensure_boto3_stub()
-

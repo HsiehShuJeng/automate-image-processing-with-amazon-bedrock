@@ -4,6 +4,14 @@ import { ImageProcessingStage } from '../lib/image-processing-stack';
 import { DEFAULT_CONFIG } from '../lib/types';
 
 describe('ImageProcessingStage', () => {
+  beforeEach(() => {
+    process.env.CDK_DISABLE_POWETOOLS_BUNDLING = 'true';
+  });
+
+  afterEach(() => {
+    delete process.env.CDK_DISABLE_POWETOOLS_BUNDLING;
+  });
+
   test('composes all infrastructure stacks', () => {
     const app = new App();
     const stage = new ImageProcessingStage(app, 'TestStage', {
@@ -17,6 +25,7 @@ describe('ImageProcessingStage', () => {
     const compute = stage.node.tryFindChild('ComputeStack');
     const orchestration = stage.node.tryFindChild('OrchestrationStack');
     const api = stage.node.tryFindChild('ApiStack');
+    const monitoring = stage.node.tryFindChild('MonitoringStack');
 
     expect(storage).toBeInstanceOf(Stack);
     expect(auth).toBeInstanceOf(Stack);
@@ -24,6 +33,7 @@ describe('ImageProcessingStage', () => {
     expect(compute).toBeInstanceOf(Stack);
     expect(orchestration).toBeInstanceOf(Stack);
     expect(api).toBeInstanceOf(Stack);
+    expect(monitoring).toBeInstanceOf(Stack);
   });
 
   test('uses cross-stack exports to wire compute and API resources', () => {
@@ -186,7 +196,7 @@ describe('ImageProcessingStage', () => {
     });
 
     expect(() => app.synth()).not.toThrow();
-    expect(stage.node.children).toHaveLength(6);
+    expect(stage.node.children).toHaveLength(7);
   });
 
   test('applies stage-level tags to all synthesized resources', () => {
@@ -212,6 +222,32 @@ describe('ImageProcessingStage', () => {
       Tags: Match.arrayWith([
         Match.objectLike({ Key: 'Project', Value: 'AutomateImageProcessing' })
       ])
+    });
+
+    const monitoringTemplate = Template.fromStack(stage.monitoringStack);
+    monitoringTemplate.hasResourceProperties('AWS::CloudWatch::Dashboard', {
+      DashboardName: Match.anyValue()
+    });
+  });
+
+  test('propagates termination protection configuration to child stacks', () => {
+    const app = new App();
+    const stage = new ImageProcessingStage(app, 'ProtectedStage', {
+      config: DEFAULT_CONFIG,
+      env: { account: '123456789012', region: 'ap-northeast-1' },
+      terminationProtection: true
+    });
+
+    [
+      stage.storageStack,
+      stage.authStack,
+      stage.notificationStack,
+      stage.computeStack,
+      stage.orchestrationStack,
+      stage.apiStack,
+      stage.monitoringStack
+    ].forEach((stack) => {
+      expect(stack.terminationProtection).toBe(true);
     });
   });
 });

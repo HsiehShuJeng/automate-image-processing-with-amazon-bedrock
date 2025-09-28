@@ -9,23 +9,23 @@ for AI-powered image generation and processing.
 import base64
 import io
 import json
-import logging
 import os
 from random import randint
 from typing import Any, Dict
 
 import boto3
-from aws_lambda_powertools import Logger, Tracer
-from aws_lambda_powertools.logging import correlation_paths
-from aws_lambda_powertools.metrics import Metrics, MetricUnit
-
-# Initialize AWS Lambda Powertools
-logger = Logger()
-tracer = Tracer()
-metrics = Metrics()
+from aws_lambda_powertools.metrics import MetricUnit
+from image_processing_common.observability import (
+    correlation_paths,
+    logger,
+    metrics,
+    tracer,
+)
 
 # Initialize AWS clients
 s3_client = boto3.client('s3')
+
+metrics.set_default_dimensions(service="build-bedrock-request")
 
 
 @logger.inject_lambda_context(correlation_id_path=correlation_paths.API_GATEWAY_REST)

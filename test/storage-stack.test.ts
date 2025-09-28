@@ -161,6 +161,89 @@ describe('StorageStack', () => {
     });
   });
 
+  describe('Resource Policies', () => {
+    test('enforces TLS on the S3 bucket', () => {
+      template.hasResourceProperties('AWS::S3::BucketPolicy', {
+        PolicyDocument: {
+          Statement: Match.arrayWith([
+            Match.objectLike({
+              Effect: 'Deny',
+              Condition: {
+                Bool: {
+                  'aws:SecureTransport': 'false'
+                }
+              }
+            })
+          ])
+        }
+      });
+    });
+
+    test('restricts S3 bucket access to the owning account', () => {
+      template.hasResourceProperties('AWS::S3::BucketPolicy', {
+        PolicyDocument: {
+          Statement: Match.arrayWith([
+            Match.objectLike({
+              Condition: Match.objectLike({
+                StringNotEquals: {
+                  'aws:PrincipalAccount': '123456789012'
+                }
+              })
+            })
+          ])
+        }
+      });
+    });
+
+    test('restricts DynamoDB ImagesTable access to secure transport and same account', () => {
+      template.hasResourceProperties('AWS::DynamoDB::Table', {
+        TableName: 'ImagesTable',
+        ResourcePolicy: Match.objectLike({
+          PolicyDocument: Match.objectLike({
+            Statement: Match.arrayWith([
+              Match.objectLike({
+                Condition: Match.objectLike({
+                  Bool: { 'aws:SecureTransport': 'false' }
+                })
+              }),
+              Match.objectLike({
+                Condition: Match.objectLike({
+                  StringNotEquals: {
+                    'aws:PrincipalAccount': '123456789012'
+                  }
+                })
+              })
+            ])
+          })
+        })
+      });
+    });
+
+    test('restricts DynamoDB StatusTable access to secure transport and same account', () => {
+      template.hasResourceProperties('AWS::DynamoDB::Table', {
+        TableName: 'StatusTable',
+        ResourcePolicy: Match.objectLike({
+          PolicyDocument: Match.objectLike({
+            Statement: Match.arrayWith([
+              Match.objectLike({
+                Condition: Match.objectLike({
+                  Bool: { 'aws:SecureTransport': 'false' }
+                })
+              }),
+              Match.objectLike({
+                Condition: Match.objectLike({
+                  StringNotEquals: {
+                    'aws:PrincipalAccount': '123456789012'
+                  }
+                })
+              })
+            ])
+          })
+        })
+      });
+    });
+  });
+
   describe('Stack Outputs Validation', () => {
     test('exports storage resources through outputs interface', () => {
       expect(stack.outputs).toBeDefined();

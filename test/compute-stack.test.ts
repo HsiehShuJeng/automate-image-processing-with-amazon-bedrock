@@ -5,36 +5,50 @@
 import { App } from 'aws-cdk-lib';
 import { Template, Match } from 'aws-cdk-lib/assertions';
 import { ComputeStack } from '../lib/constructs/compute-stack';
+import { NotificationStack } from '../lib/constructs/notification-stack';
 import { StorageStack } from '../lib/constructs/storage-stack';
 import { DEFAULT_CONFIG } from '../lib/types';
 
 describe('ComputeStack', () => {
   let app: App;
   let storageStack: StorageStack;
+  let notificationStack: NotificationStack;
   let computeStack: ComputeStack;
   let template: Template;
+  let config: typeof DEFAULT_CONFIG;
 
   // Common setup - refactored as per CDK test guidelines
   beforeEach(() => {
     app = new App();
-    
+    process.env.CDK_DISABLE_POWETOOLS_BUNDLING = 'true';
+    config = { ...DEFAULT_CONFIG, notificationEmail: 'alerts@example.com' };
+
     // Create dependency stack
     storageStack = new StorageStack(app, 'TestStorageStack', {
-      config: DEFAULT_CONFIG,
+      config,
       env: { account: '123456789012', region: 'ap-northeast-1' }
     });
-    
+
+    notificationStack = new NotificationStack(app, 'TestNotificationStack', {
+      config,
+      env: { account: '123456789012', region: 'ap-northeast-1' }
+    });
+
     // Create Compute stack with dependencies
     computeStack = new ComputeStack(app, 'TestComputeStack', {
-      config: DEFAULT_CONFIG,
+      config,
       bucket: storageStack.outputs.bucket,
       imagesTable: storageStack.outputs.imagesTable,
       statusTable: storageStack.outputs.statusTable,
-      snsTopic: undefined as any, // Will be created in workflow stack
+      snsTopic: notificationStack.outputs.topic,
       env: { account: '123456789012', region: 'ap-northeast-1' }
     });
     
     template = Template.fromStack(computeStack);
+  });
+
+  afterEach(() => {
+    delete process.env.CDK_DISABLE_POWETOOLS_BUNDLING;
   });
 
   describe('Lambda Functions Configuration', () => {
@@ -81,7 +95,26 @@ describe('ComputeStack', () => {
     });
 
     test('creates exactly four Lambda functions', () => {
-      template.resourceCountIs('AWS::Lambda::Function', 4);
+      const lambdaResources = template.findResources('AWS::Lambda::Function');
+      const appHandlers = Object.values(lambdaResources).filter(
+        (resource) => resource.Properties?.Handler === 'app.lambda_handler'
+      );
+      expect(appHandlers).toHaveLength(4);
+    });
+  });
+
+  describe('Observability Configuration', () => {
+    test('enables active tracing on all Lambda functions', () => {
+      const lambdaResources = template.findResources('AWS::Lambda::Function');
+      Object.values(lambdaResources)
+        .filter((resource) => resource.Properties?.Handler === 'app.lambda_handler')
+        .forEach((resource) => {
+          expect(resource.Properties?.TracingConfig?.Mode).toBe('Active');
+        });
+    });
+
+    test('creates log retention custom resources for Lambda functions', () => {
+      template.resourceCountIs('Custom::LogRetention', 4);
     });
   });
 
@@ -91,9 +124,9 @@ describe('ComputeStack', () => {
         Environment: {
           Variables: {
             INPUT_BUCKET: Match.anyValue(),
-            IMAGE_PREFIX: DEFAULT_CONFIG.imagePrefix,
-            GENERATED_IMAGE_PREFIX: DEFAULT_CONFIG.generatedImagePrefix,
-            STATUS_REPORT_PREFIX: DEFAULT_CONFIG.statusReportPrefix
+            IMAGE_PREFIX: config.imagePrefix,
+            GENERATED_IMAGE_PREFIX: config.generatedImagePrefix,
+            STATUS_REPORT_PREFIX: config.statusReportPrefix
           }
         }
       });
@@ -104,10 +137,30 @@ describe('ComputeStack', () => {
         Environment: {
           Variables: {
             STATUS_TABLE: Match.anyValue(),
-            STATUS_REPORT_URL_EXPIRATION: DEFAULT_CONFIG.statusReportUrlExpiration.toString()
+            STATUS_REPORT_URL_EXPIRATION: config.statusReportUrlExpiration.toString()
           }
         }
       });
+    });
+  });
+
+  describe('Lambda Layers', () => {
+    test('creates shared layer versions for Powertools and common utilities', () => {
+      template.resourceCountIs('AWS::Lambda::LayerVersion', 2);
+    });
+
+    test('attaches layers to compute Lambdas', () => {
+      const lambdaResources = template.findResources('AWS::Lambda::Function');
+      Object.values(lambdaResources)
+        .filter((resource) => resource.Properties?.Handler === 'app.lambda_handler')
+        .forEach((resource) => {
+          expect(resource.Properties?.Layers).toEqual(
+            expect.arrayContaining([
+              expect.objectContaining({ Ref: expect.stringMatching(/PowertoolsLayer/) }),
+              expect.objectContaining({ Ref: expect.stringMatching(/CommonUtilitiesLayer/) })
+            ])
+          );
+        });
     });
   });
 
@@ -132,10 +185,10 @@ describe('ComputeStack', () => {
       
       expect(statusReportPolicy).toBeDefined();
       const statements = statusReportPolicy.Properties.PolicyDocument.Statement;
-      const hasDynamoPermissions = statements.some((stmt: any) => 
-        stmt.Action?.some((action: string) => action.includes('dynamodb:'))
+      const hasUpdateItemPermission = statements.some((stmt: any) =>
+        stmt.Action?.some((action: string) => action === 'dynamodb:UpdateItem')
       );
-      expect(hasDynamoPermissions).toBe(true);
+      expect(hasUpdateItemPermission).toBe(true);
     });
 
     test('creates IAM roles for Lambda functions', () => {

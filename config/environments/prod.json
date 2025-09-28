@@ -1,0 +1,17 @@
+{
+  "account": "123456789012",
+  "region": "ap-northeast-1",
+  "stackNamePrefix": "ImageProcessingProd",
+  "stageId": "ImageProcessingProd",
+  "config": {
+    "notificationEmail": "prod-notifications@example.com",
+    "statusReportUrlExpiration": 86400,
+    "maxConcurrency": 10
+  },
+  "tags": {
+    "Environment": "prod",
+    "Project": "AutomateImageProcessing",
+    "Owner": "ImageAutomation"
+  },
+  "terminationProtection": true
+}

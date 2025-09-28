@@ -7,24 +7,24 @@ with pre-signed URLs for easy access.
 """
 
 import json
-import logging
 import os
 from datetime import datetime, timedelta, timezone
 from typing import Any, Dict, List
 
 import boto3
-from aws_lambda_powertools import Logger, Tracer
-from aws_lambda_powertools.logging import correlation_paths
-from aws_lambda_powertools.metrics import Metrics, MetricUnit
-
-# Initialize AWS Lambda Powertools
-logger = Logger()
-tracer = Tracer()
-metrics = Metrics()
+from aws_lambda_powertools.metrics import MetricUnit
+from image_processing_common.observability import (
+    correlation_paths,
+    logger,
+    metrics,
+    tracer,
+)
 
 # Initialize AWS clients
 s3_client = boto3.client('s3')
 dynamodb = boto3.resource('dynamodb')
+
+metrics.set_default_dimensions(service="generate-status-report")
 
 # Environment variables
 STATUS_TABLE = os.environ.get('STATUS_TABLE')

@@ -52,6 +52,27 @@ describe('ApiStack', () => {
     test('creates exactly one REST API', () => {
       template.resourceCountIs('AWS::ApiGateway::RestApi', 1);
     });
+
+    test('configures stage with access logging and tracing', () => {
+      template.hasResourceProperties('AWS::ApiGateway::Stage', {
+        AccessLogSetting: Match.objectLike({
+          DestinationArn: Match.anyValue()
+        }),
+        TracingEnabled: true,
+        MethodSettings: Match.arrayWith([
+          Match.objectLike({
+            LoggingLevel: 'INFO',
+            MetricsEnabled: true
+          })
+        ])
+      });
+    });
+  });
+
+  describe('Observability', () => {
+    test('creates CloudWatch log group for API access logs', () => {
+      template.resourceCountIs('AWS::Logs::LogGroup', 1);
+    });
   });
 
   describe('Cognito Authorizer Configuration', () => {
