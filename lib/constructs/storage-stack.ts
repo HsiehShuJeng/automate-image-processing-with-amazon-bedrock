@@ -121,6 +121,10 @@ export class StorageStack extends Stack {
  *
  * @param tableArn - ARN of the DynamoDB table the policy targets.
  * @param account - AWS account ID that should retain exclusive access.
+ *
+ * @see [AWS::DynamoDB::Table ResourcePolicy](https://docs.aws.amazon.com/AWSCloudFormation/latest/UserGuide/aws-properties-dynamodb-table-resourcepolicy.html)
+ * @see [AWS global condition context keys - aws:SecureTransport](https://docs.aws.amazon.com/IAM/latest/UserGuide/reference_policies_condition-keys.html#condition-keys-securetransport)
+ * @see [AWS global condition context keys - aws:PrincipalAccount](https://docs.aws.amazon.com/IAM/latest/UserGuide/reference_policies_condition-keys.html#condition-keys-principalaccount)
  */
 function createDynamoDbPolicy(tableArn: string, account: string): iam.PolicyDocument {
   return new iam.PolicyDocument({
