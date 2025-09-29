@@ -63,6 +63,14 @@ export class StorageStack extends Stack {
     const imagesTableName = 'ImagesTable';
     const statusTableName = 'StatusTable';
 
+    const imagesTableArn = this.formatArn({
+      service: 'dynamodb',
+      resource: 'table',
+      resourceName: imagesTableName
+    });
+
+    const imagesTablePolicy = createDynamoDbPolicy(imagesTableArn, this.account);
+
     // Create ImagesTable with stream enabled
     const imagesTable = new dynamodb.Table(this, 'ImagesTable', {
       tableName: imagesTableName,
@@ -70,96 +78,28 @@ export class StorageStack extends Stack {
       billingMode: dynamodb.BillingMode.PAY_PER_REQUEST,
       encryption: dynamodb.TableEncryption.AWS_MANAGED,
       stream: dynamodb.StreamViewType.NEW_IMAGE,
-      removalPolicy: RemovalPolicy.DESTROY // For development - change for production
+      removalPolicy: RemovalPolicy.DESTROY, // For development - change for production
+      resourcePolicy: imagesTablePolicy
     });
-
-    const imagesTableArn = this.formatArn({
-      service: 'dynamodb',
-      resource: 'table',
-      resourceName: imagesTableName
-    });
-
-    const imagesTablePolicy = new iam.PolicyDocument({
-      statements: [
-        new iam.PolicyStatement({
-          sid: 'DenyImagesTableInsecureTransport',
-          effect: iam.Effect.DENY,
-          actions: ['dynamodb:*'],
-          principals: [new iam.AnyPrincipal()],
-          resources: [imagesTableArn],
-          conditions: {
-            Bool: {
-              'aws:SecureTransport': 'false'
-            }
-          }
-        }),
-        new iam.PolicyStatement({
-          sid: 'RestrictImagesTableAccessToAccount',
-          effect: iam.Effect.DENY,
-          actions: ['dynamodb:*'],
-          principals: [new iam.AnyPrincipal()],
-          resources: [imagesTableArn],
-          conditions: {
-            StringNotEquals: {
-              'aws:PrincipalAccount': this.account
-            }
-          }
-        })
-      ]
-    });
-    const imagesTableCfn = imagesTable.node.defaultChild as dynamodb.CfnTable;
-    imagesTableCfn.resourcePolicy = {
-      policyDocument: imagesTablePolicy.toJSON()
-    };
 
     // Create StatusTable with composite key
-    const statusTable = new dynamodb.Table(this, 'StatusTable', {
-      tableName: statusTableName,
-      partitionKey: { name: 'Id', type: dynamodb.AttributeType.STRING },
-      sortKey: { name: 'ImageName', type: dynamodb.AttributeType.STRING },
-      billingMode: dynamodb.BillingMode.PAY_PER_REQUEST,
-      encryption: dynamodb.TableEncryption.AWS_MANAGED,
-      removalPolicy: RemovalPolicy.DESTROY // For development - change for production
-    });
-
     const statusTableArn = this.formatArn({
       service: 'dynamodb',
       resource: 'table',
       resourceName: statusTableName
     });
 
-    const statusTablePolicy = new iam.PolicyDocument({
-      statements: [
-        new iam.PolicyStatement({
-          sid: 'DenyStatusTableInsecureTransport',
-          effect: iam.Effect.DENY,
-          actions: ['dynamodb:*'],
-          principals: [new iam.AnyPrincipal()],
-          resources: [statusTableArn],
-          conditions: {
-            Bool: {
-              'aws:SecureTransport': 'false'
-            }
-          }
-        }),
-        new iam.PolicyStatement({
-          sid: 'RestrictStatusTableAccessToAccount',
-          effect: iam.Effect.DENY,
-          actions: ['dynamodb:*'],
-          principals: [new iam.AnyPrincipal()],
-          resources: [statusTableArn],
-          conditions: {
-            StringNotEquals: {
-              'aws:PrincipalAccount': this.account
-            }
-          }
-        })
-      ]
+    const statusTablePolicy = createDynamoDbPolicy(statusTableArn, this.account);
+
+    const statusTable = new dynamodb.Table(this, 'StatusTable', {
+      tableName: statusTableName,
+      partitionKey: { name: 'Id', type: dynamodb.AttributeType.STRING },
+      sortKey: { name: 'ImageName', type: dynamodb.AttributeType.STRING },
+      billingMode: dynamodb.BillingMode.PAY_PER_REQUEST,
+      encryption: dynamodb.TableEncryption.AWS_MANAGED,
+      removalPolicy: RemovalPolicy.DESTROY, // For development - change for production
+      resourcePolicy: statusTablePolicy
     });
-    const statusTableCfn = statusTable.node.defaultChild as dynamodb.CfnTable;
-    statusTableCfn.resourcePolicy = {
-      policyDocument: statusTablePolicy.toJSON()
-    };
 
     // Apply CDK Nag security checks
     applyCdkNag(this);
@@ -173,4 +113,53 @@ export class StorageStack extends Stack {
       statusTable
     };
   }
+}
+
+/**
+ * Creates a DynamoDB resource policy that blocks insecure transport and
+ * restricts access to the owning AWS account.
+ *
+ * @param tableArn - ARN of the DynamoDB table the policy targets.
+ * @param account - AWS account ID that should retain exclusive access.
+ */
+function createDynamoDbPolicy(tableArn: string, account: string): iam.PolicyDocument {
+  return new iam.PolicyDocument({
+    statements: [
+      new iam.PolicyStatement({
+        sid: `Deny${extractTableName(tableArn)}InsecureTransport`,
+        effect: iam.Effect.DENY,
+        actions: ['dynamodb:*'],
+        principals: [new iam.AnyPrincipal()],
+        resources: [tableArn],
+        conditions: {
+          Bool: {
+            'aws:SecureTransport': 'false'
+          }
+        }
+      }),
+      new iam.PolicyStatement({
+        sid: `Restrict${extractTableName(tableArn)}AccessToAccount`,
+        effect: iam.Effect.DENY,
+        actions: ['dynamodb:*'],
+        principals: [new iam.AnyPrincipal()],
+        resources: [tableArn],
+        conditions: {
+          StringNotEquals: {
+            'aws:PrincipalAccount': account
+          }
+        }
+      })
+    ]
+  });
+}
+
+/**
+ * Derives the table name from a DynamoDB table ARN.
+ *
+ * @param tableArn - ARN for the DynamoDB table.
+ * @returns The logical table name parsed from the ARN.
+ */
+function extractTableName(tableArn: string): string {
+  const parts = tableArn.split('/');
+  return parts[parts.length - 1] ?? 'Table';
 }
