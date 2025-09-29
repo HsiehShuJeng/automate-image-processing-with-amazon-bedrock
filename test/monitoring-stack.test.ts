@@ -10,13 +10,6 @@ import { ComputeStackOutputs } from '../lib/types';
 import { DEFAULT_CONFIG } from '../lib/types';
 
 describe('MonitoringStack', () => {
-  beforeEach(() => {
-  process.env.CDK_DISABLE_POWERTOOLS_BUNDLING = 'true';
-  });
-
-  afterEach(() => {
-  delete process.env.CDK_DISABLE_POWERTOOLS_BUNDLING;
-  });
 
   const createComputeOutputs = (scope: Stack): ComputeStackOutputs => {
     const fnProps: lambda.FunctionProps = {

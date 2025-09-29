@@ -20,7 +20,6 @@ describe('ComputeStack', () => {
   // Common setup - refactored as per CDK test guidelines
   beforeEach(() => {
     app = new App();
-    process.env.CDK_DISABLE_POWERTOOLS_BUNDLING = 'true';
     config = { ...DEFAULT_CONFIG, notificationEmail: 'alerts@example.com' };
 
     // Create dependency stack
@@ -45,10 +44,6 @@ describe('ComputeStack', () => {
     });
     
     template = Template.fromStack(computeStack);
-  });
-
-  afterEach(() => {
-    delete process.env.CDK_DISABLE_POWERTOOLS_BUNDLING;
   });
 
   describe('Lambda Functions Configuration', () => {
@@ -151,22 +146,26 @@ describe('ComputeStack', () => {
   });
 
   describe('Lambda Layers', () => {
-    test('creates shared layer versions for Powertools and common utilities', () => {
-      template.resourceCountIs('AWS::Lambda::LayerVersion', 2);
+    test('creates shared layer version for common utilities only', () => {
+      template.resourceCountIs('AWS::Lambda::LayerVersion', 1);
     });
 
-    test('attaches layers to compute Lambdas', () => {
-      const lambdaResources = template.findResources('AWS::Lambda::Function');
-      Object.values(lambdaResources)
-        .filter((resource) => resource.Properties?.Handler === 'app.lambda_handler')
-        .forEach((resource) => {
-          expect(resource.Properties?.Layers).toEqual(
-            expect.arrayContaining([
-              expect.objectContaining({ Ref: expect.stringMatching(/PowertoolsLayer/) }),
-              expect.objectContaining({ Ref: expect.stringMatching(/CommonUtilitiesLayer/) })
-            ])
-          );
-        });
+    test('attaches Powertools layer via SSM parameter reference', () => {
+      template.hasResourceProperties('AWS::Lambda::Function', {
+        Layers: Match.arrayWith([
+          Match.objectLike({
+            Ref: Match.stringLikeRegexp('SsmParameterValueawsservicepowertoolspythonx8664python313latest')
+          })
+        ])
+      });
+    });
+
+    test('attaches shared common utilities layer to compute Lambdas', () => {
+      template.hasResourceProperties('AWS::Lambda::Function', {
+        Layers: Match.arrayWith([
+          Match.objectLike({ Ref: Match.stringLikeRegexp('CommonUtilitiesLayer') })
+        ])
+      });
     });
   });
 

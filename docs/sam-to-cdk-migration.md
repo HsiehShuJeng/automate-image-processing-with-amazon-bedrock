@@ -3,7 +3,7 @@
 This document records the design decisions and implementation updates completed while migrating the image processing solution from AWS SAM to AWS CDK.
 
 ## Lambda Layers
-- Created `layers/powertools` with AWS Lambda Powertools pinned to `2.32.0`.
+- Import the managed AWS Lambda Powertools layer via SSM parameter resolution so the deployment always uses the latest regional release without packaging local assets.
 - Added `layers/common-utils` providing shared observability helpers (`logger`, `tracer`, `metrics`).
 - All compute Lambdas consume the layers to avoid duplicating dependencies.
 

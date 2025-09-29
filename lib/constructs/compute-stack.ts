@@ -14,13 +14,12 @@ import * as iam from 'aws-cdk-lib/aws-iam';
 import * as lambda from 'aws-cdk-lib/aws-lambda';
 import * as lambdaEventSources from 'aws-cdk-lib/aws-lambda-event-sources';
 import * as logs from 'aws-cdk-lib/aws-logs';
+import * as ssm from 'aws-cdk-lib/aws-ssm';
 import { LambdaToSns } from '@aws-solutions-constructs/aws-lambda-sns';
 import { Construct } from 'constructs';
 import { ComputeStackProps, ComputeStackOutputs } from '../types';
 import { applyCdkNag, SecuritySuppressions } from '../utils';
 import { join } from 'path';
-import { execSync } from 'child_process';
-import { mkdirSync } from 'fs';
 
 export class ComputeStack extends Stack {
   public readonly outputs: ComputeStackOutputs;
@@ -28,47 +27,8 @@ export class ComputeStack extends Stack {
   constructor(scope: Construct, id: string, props: ComputeStackProps) {
     super(scope, id, props);
 
-    const powertoolsLayerSourcePath = join(__dirname, '..', '..', 'layers', 'powertools');
-    const bundlingDisabled = process.env.CDK_DISABLE_POWERTOOLS_BUNDLING === 'true';
-    const powertoolsLayerCode = lambda.Code.fromAsset(
-      powertoolsLayerSourcePath,
-      bundlingDisabled
-        ? {
-            exclude: ['*.pyc', '__pycache__']
-          }
-        : {
-            bundling: {
-              local: {
-                tryBundle(outputDir: string): boolean {
-                  const outputPythonPath = join(outputDir, 'python');
-                  mkdirSync(outputPythonPath, { recursive: true });
-                  try {
-                    execSync(`pip3 install -r requirements.txt -t "${outputPythonPath}"`, {
-                      cwd: powertoolsLayerSourcePath,
-                      stdio: 'inherit'
-                    });
-                  } catch (error) {
-                    console.error('Local installation of AWS Lambda Powertools failed.', error);
-                    return false;
-                  }
-                  return true;
-                }
-              },
-              image: lambda.Runtime.PYTHON_3_13.bundlingImage,
-              command: [
-                'bash',
-                '-c',
-                'pip install -r requirements.txt -t /asset-output/python'
-              ]
-            }
-          }
-    );
-
-    const powertoolsLayer = new lambda.LayerVersion(this, 'PowertoolsLayer', {
-      compatibleRuntimes: [lambda.Runtime.PYTHON_3_13],
-      description: 'Shared AWS Lambda Powertools dependencies',
-      code: powertoolsLayerCode
-    });
+    const powertoolsLayerArn = resolvePowertoolsLayerArn(this, lambda.Runtime.PYTHON_3_13);
+    const powertoolsLayer = lambda.LayerVersion.fromLayerVersionArn(this, 'PowertoolsLayer', powertoolsLayerArn);
 
     const commonUtilitiesLayer = new lambda.LayerVersion(this, 'CommonUtilitiesLayer', {
       compatibleRuntimes: [lambda.Runtime.PYTHON_3_13],
@@ -201,6 +161,25 @@ export class ComputeStack extends Stack {
       statusReportFunction
     };
   }
+}
+
+/**
+ * Resolves the ARN of the AWS managed Powertools layer for the given runtime and architecture.
+ *
+ * Reference: https://docs.powertools.aws.dev/lambda/python/latest/#lambda-layer_1
+ */
+function resolvePowertoolsLayerArn(
+  scope: Construct,
+  runtime: lambda.Runtime,
+  architecture: lambda.Architecture = lambda.Architecture.X86_64
+): string {
+  const archSegment = architecture.name;
+  const runtimeSegment = runtime.name;
+
+  return ssm.StringParameter.valueForStringParameter(
+    scope,
+    `/aws/service/powertools/python/${archSegment}/${runtimeSegment}/latest`
+  );
 }
 
 /**
