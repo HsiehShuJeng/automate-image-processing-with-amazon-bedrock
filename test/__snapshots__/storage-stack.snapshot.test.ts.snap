@@ -39,7 +39,7 @@ exports[`StorageStack CloudFormation Template matches expected CloudFormation te
       "Properties": {
         "Code": {
           "S3Bucket": "cdk-hnb659fds-assets-123456789012-ap-northeast-1",
-          "S3Key": "faa95a81ae7d7373f3e1f242268f904eb748d8d0fdd306e8a6fe515a1905a7d6.zip",
+          "S3Key": "4bbf54f7ebdde55489aced5c6194a24cc50f226cb1b5bc3a006dfc954e329316.zip",
         },
         "Description": {
           "Fn::Join": [
@@ -185,6 +185,76 @@ exports[`StorageStack CloudFormation Template matches expected CloudFormation te
                 },
               ],
             },
+            {
+              "Action": "s3:*",
+              "Condition": {
+                "Bool": {
+                  "aws:SecureTransport": "false",
+                },
+              },
+              "Effect": "Deny",
+              "Principal": {
+                "AWS": "*",
+              },
+              "Resource": [
+                {
+                  "Fn::GetAtt": [
+                    "ImageBucket97210811",
+                    "Arn",
+                  ],
+                },
+                {
+                  "Fn::Join": [
+                    "",
+                    [
+                      {
+                        "Fn::GetAtt": [
+                          "ImageBucket97210811",
+                          "Arn",
+                        ],
+                      },
+                      "/*",
+                    ],
+                  ],
+                },
+              ],
+              "Sid": "DenyInsecureTransport",
+            },
+            {
+              "Action": "s3:*",
+              "Condition": {
+                "StringNotEquals": {
+                  "aws:PrincipalAccount": "123456789012",
+                },
+              },
+              "Effect": "Deny",
+              "Principal": {
+                "AWS": "*",
+              },
+              "Resource": [
+                {
+                  "Fn::GetAtt": [
+                    "ImageBucket97210811",
+                    "Arn",
+                  ],
+                },
+                {
+                  "Fn::Join": [
+                    "",
+                    [
+                      {
+                        "Fn::GetAtt": [
+                          "ImageBucket97210811",
+                          "Arn",
+                        ],
+                      },
+                      "/*",
+                    ],
+                  ],
+                },
+              ],
+              "Sid": "RestrictBucketAccessToAccount",
+            },
           ],
           "Version": "2012-10-17",
         },
@@ -207,6 +277,63 @@ exports[`StorageStack CloudFormation Template matches expected CloudFormation te
             "KeyType": "HASH",
           },
         ],
+        "ResourcePolicy": {
+          "PolicyDocument": {
+            "Statement": [
+              {
+                "Action": "dynamodb:*",
+                "Condition": {
+                  "Bool": {
+                    "aws:SecureTransport": "false",
+                  },
+                },
+                "Effect": "Deny",
+                "Principal": {
+                  "AWS": "*",
+                },
+                "Resource": {
+                  "Fn::Join": [
+                    "",
+                    [
+                      "arn:",
+                      {
+                        "Ref": "AWS::Partition",
+                      },
+                      ":dynamodb:ap-northeast-1:123456789012:table/ImagesTable",
+                    ],
+                  ],
+                },
+                "Sid": "DenyImagesTableInsecureTransport",
+              },
+              {
+                "Action": "dynamodb:*",
+                "Condition": {
+                  "StringNotEquals": {
+                    "aws:PrincipalAccount": "123456789012",
+                  },
+                },
+                "Effect": "Deny",
+                "Principal": {
+                  "AWS": "*",
+                },
+                "Resource": {
+                  "Fn::Join": [
+                    "",
+                    [
+                      "arn:",
+                      {
+                        "Ref": "AWS::Partition",
+                      },
+                      ":dynamodb:ap-northeast-1:123456789012:table/ImagesTable",
+                    ],
+                  ],
+                },
+                "Sid": "RestrictImagesTableAccessToAccount",
+              },
+            ],
+            "Version": "2012-10-17",
+          },
+        },
         "SSESpecification": {
           "SSEEnabled": true,
         },
@@ -242,6 +369,63 @@ exports[`StorageStack CloudFormation Template matches expected CloudFormation te
             "KeyType": "RANGE",
           },
         ],
+        "ResourcePolicy": {
+          "PolicyDocument": {
+            "Statement": [
+              {
+                "Action": "dynamodb:*",
+                "Condition": {
+                  "Bool": {
+                    "aws:SecureTransport": "false",
+                  },
+                },
+                "Effect": "Deny",
+                "Principal": {
+                  "AWS": "*",
+                },
+                "Resource": {
+                  "Fn::Join": [
+                    "",
+                    [
+                      "arn:",
+                      {
+                        "Ref": "AWS::Partition",
+                      },
+                      ":dynamodb:ap-northeast-1:123456789012:table/StatusTable",
+                    ],
+                  ],
+                },
+                "Sid": "DenyStatusTableInsecureTransport",
+              },
+              {
+                "Action": "dynamodb:*",
+                "Condition": {
+                  "StringNotEquals": {
+                    "aws:PrincipalAccount": "123456789012",
+                  },
+                },
+                "Effect": "Deny",
+                "Principal": {
+                  "AWS": "*",
+                },
+                "Resource": {
+                  "Fn::Join": [
+                    "",
+                    [
+                      "arn:",
+                      {
+                        "Ref": "AWS::Partition",
+                      },
+                      ":dynamodb:ap-northeast-1:123456789012:table/StatusTable",
+                    ],
+                  ],
+                },
+                "Sid": "RestrictStatusTableAccessToAccount",
+              },
+            ],
+            "Version": "2012-10-17",
+          },
+        },
         "SSESpecification": {
           "SSEEnabled": true,
         },
