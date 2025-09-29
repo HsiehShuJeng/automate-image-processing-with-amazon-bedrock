@@ -24,14 +24,24 @@ import { join } from 'path';
 export class ComputeStack extends Stack {
   public readonly outputs: ComputeStackOutputs;
 
+  /**
+   * Creates the compute tier for the image processing workflow, provisioning
+   * Lambda functions, shared layers, and IAM permissions. Runtime and
+   * architecture defaults can be overridden via {@link ComputeStackProps} to
+   * accommodate regional or hardware-specific deployments.
+   */
   constructor(scope: Construct, id: string, props: ComputeStackProps) {
     super(scope, id, props);
 
-    const powertoolsLayerArn = resolvePowertoolsLayerArn(this, lambda.Runtime.PYTHON_3_13);
+    const lambdaRuntime = props.runtime ?? lambda.Runtime.PYTHON_3_13;
+    const lambdaArchitecture = props.architecture ?? lambda.Architecture.X86_64;
+
+    const powertoolsLayerArn = resolvePowertoolsLayerArn(this, lambdaRuntime, lambdaArchitecture);
     const powertoolsLayer = lambda.LayerVersion.fromLayerVersionArn(this, 'PowertoolsLayer', powertoolsLayerArn);
 
     const commonUtilitiesLayer = new lambda.LayerVersion(this, 'CommonUtilitiesLayer', {
-      compatibleRuntimes: [lambda.Runtime.PYTHON_3_13],
+      compatibleRuntimes: [lambdaRuntime],
+      compatibleArchitectures: [lambdaArchitecture],
       description: 'Shared utilities for image processing Lambdas',
       code: lambda.Code.fromAsset(join(__dirname, '..', '..', 'layers', 'common-utils'))
     });
@@ -46,7 +56,8 @@ export class ComputeStack extends Stack {
     // Create StartImageProcessingWorkflowFunction with DynamoDB stream trigger
     const startWorkflowLogGroup = createLambdaLogGroup(this, 'StartWorkflowLogGroup');
     const startWorkflowFunction = new lambda.Function(this, 'StartImageProcessingWorkflowFunction', {
-      runtime: lambda.Runtime.PYTHON_3_13,
+      runtime: lambdaRuntime,
+      architecture: lambdaArchitecture,
       handler: 'app.lambda_handler',
       code: lambda.Code.fromAsset('src/start-image-processing-workflow'),
       timeout: Duration.seconds(120), // Specific timeout per SAM template
@@ -83,7 +94,8 @@ export class ComputeStack extends Stack {
     // Create BuildBedrockRequestFunction with 900s timeout per SAM global setting
     const buildRequestLogGroup = createLambdaLogGroup(this, 'BuildRequestLogGroup');
     const buildRequestFunction = new lambda.Function(this, 'BuildBedrockRequestFunction', {
-      runtime: lambda.Runtime.PYTHON_3_13,
+      runtime: lambdaRuntime,
+      architecture: lambdaArchitecture,
       handler: 'app.lambda_handler',
       code: lambda.Code.fromAsset('src/build-bedrock-request'),
       timeout: Duration.seconds(900), // Global timeout per SAM template
@@ -101,7 +113,8 @@ export class ComputeStack extends Stack {
     // Create ParseBedrockResponseFunction with 900s timeout per SAM global setting
     const parseResponseLogGroup = createLambdaLogGroup(this, 'ParseResponseLogGroup');
     const parseResponseFunction = new lambda.Function(this, 'ParseBedrockResponseFunction', {
-      runtime: lambda.Runtime.PYTHON_3_13,
+      runtime: lambdaRuntime,
+      architecture: lambdaArchitecture,
       handler: 'app.lambda_handler',
       code: lambda.Code.fromAsset('src/parse-bedrock-response'),
       timeout: Duration.seconds(900), // Global timeout per SAM template
@@ -119,7 +132,8 @@ export class ComputeStack extends Stack {
     // Create GenerateStatusReportFunction with 900s timeout per SAM global setting
     const statusReportLogGroup = createLambdaLogGroup(this, 'StatusReportLogGroup');
     const statusReportFunction = new lambda.Function(this, 'GenerateStatusReportFunction', {
-      runtime: lambda.Runtime.PYTHON_3_13,
+      runtime: lambdaRuntime,
+      architecture: lambdaArchitecture,
       handler: 'app.lambda_handler',
       code: lambda.Code.fromAsset('src/generate-status-report'),
       timeout: Duration.seconds(900), // Global timeout per SAM template
@@ -164,9 +178,15 @@ export class ComputeStack extends Stack {
 }
 
 /**
- * Resolves the ARN of the AWS managed Powertools layer for the given runtime and architecture.
+ * Resolves the ARN of the AWS managed Powertools layer for the supplied runtime
+ * and architecture.
  *
- * Reference: https://docs.powertools.aws.dev/lambda/python/latest/#lambda-layer_1
+ * @param scope construct used to look up the SSM parameter reference.
+ * @param runtime targeted Lambda runtime (for example, {@link lambda.Runtime.PYTHON_3_13}).
+ * @param architecture CPU architecture used by the Lambda functions (defaults to x86_64).
+ * @returns the parameter-resolved ARN for the requested Powertools layer version.
+ *
+ * @see https://docs.powertools.aws.dev/lambda/python/latest/#lambda-layer_1
  */
 function resolvePowertoolsLayerArn(
   scope: Construct,
@@ -183,11 +203,11 @@ function resolvePowertoolsLayerArn(
 }
 
 /**
- * Creates a Lambda log group with the project-wide retention policy applied.
+ * Creates a CloudWatch Logs group with the project-wide retention policy.
  *
  * @param scope construct scope used for parenting the log group.
  * @param id logical identifier for the log group within the stack.
- * @returns a log group configured for 30-day retention and stack cleanup.
+ * @returns log group configured for 30-day retention and stack cleanup.
  */
 function createLambdaLogGroup(scope: Construct, id: string): logs.LogGroup {
   return new logs.LogGroup(scope, id, {

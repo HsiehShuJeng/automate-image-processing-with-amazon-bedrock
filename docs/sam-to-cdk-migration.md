@@ -6,6 +6,7 @@ This document records the design decisions and implementation updates completed 
 - Import the managed AWS Lambda Powertools layer via SSM parameter resolution so the deployment always uses the latest regional release without packaging local assets.
 - Added `layers/common-utils` providing shared observability helpers (`logger`, `tracer`, `metrics`).
 - All compute Lambdas consume the layers to avoid duplicating dependencies.
+- `ComputeStack` exposes optional runtime/architecture overrides so teams can align Lambda builds with regional runtime availability or Graviton adoption plans without altering stack internals.
 
 ## Powertools Adoption
 - `src/start-image-processing-workflow/app.py` now uses Powertools logging, tracing, and metrics to align with the other compute handlers.

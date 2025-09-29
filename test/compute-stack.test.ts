@@ -4,6 +4,7 @@
 
 import { App } from 'aws-cdk-lib';
 import { Template, Match } from 'aws-cdk-lib/assertions';
+import * as lambda from 'aws-cdk-lib/aws-lambda';
 import { ComputeStack } from '../lib/constructs/compute-stack';
 import { NotificationStack } from '../lib/constructs/notification-stack';
 import { StorageStack } from '../lib/constructs/storage-stack';
@@ -248,6 +249,38 @@ describe('ComputeStack', () => {
       expect(computeStack.outputs.buildRequestFunction.functionArn).toBeDefined();
       expect(computeStack.outputs.parseResponseFunction.functionArn).toBeDefined();
       expect(computeStack.outputs.statusReportFunction.functionArn).toBeDefined();
+    });
+  });
+
+  describe('Runtime and architecture configuration', () => {
+    test('supports overriding runtime and architecture for all functions', () => {
+      const app = new App();
+      const storage = new StorageStack(app, 'CustomRuntimeStorage', {
+        config,
+        env: { account: '123456789012', region: 'ap-northeast-1' }
+      });
+
+      const notification = new NotificationStack(app, 'CustomRuntimeNotification', {
+        config,
+        env: { account: '123456789012', region: 'ap-northeast-1' }
+      });
+
+      const customStack = new ComputeStack(app, 'CustomRuntimeCompute', {
+        config,
+        bucket: storage.outputs.bucket,
+        imagesTable: storage.outputs.imagesTable,
+        statusTable: storage.outputs.statusTable,
+        snsTopic: notification.outputs.topic,
+        runtime: lambda.Runtime.PYTHON_3_12,
+        architecture: lambda.Architecture.ARM_64,
+        env: { account: '123456789012', region: 'ap-northeast-1' }
+      });
+
+      const customTemplate = Template.fromStack(customStack);
+      customTemplate.hasResourceProperties('AWS::Lambda::Function', {
+        Runtime: 'python3.12',
+        Architectures: ['arm64']
+      });
     });
   });
 });

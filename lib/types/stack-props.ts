@@ -75,6 +75,8 @@ export interface ComputeStackProps extends BaseStackProps {
   readonly imagesTable: dynamodb.Table;
   readonly statusTable: dynamodb.Table;
   readonly snsTopic: sns.Topic;
+  readonly runtime?: lambda.Runtime;
+  readonly architecture?: lambda.Architecture;
 }
 
 /**
