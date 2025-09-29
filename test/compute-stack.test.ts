@@ -20,7 +20,7 @@ describe('ComputeStack', () => {
   // Common setup - refactored as per CDK test guidelines
   beforeEach(() => {
     app = new App();
-    process.env.CDK_DISABLE_POWETOOLS_BUNDLING = 'true';
+    process.env.CDK_DISABLE_POWERTOOLS_BUNDLING = 'true';
     config = { ...DEFAULT_CONFIG, notificationEmail: 'alerts@example.com' };
 
     // Create dependency stack
@@ -48,7 +48,7 @@ describe('ComputeStack', () => {
   });
 
   afterEach(() => {
-    delete process.env.CDK_DISABLE_POWETOOLS_BUNDLING;
+    delete process.env.CDK_DISABLE_POWERTOOLS_BUNDLING;
   });
 
   describe('Lambda Functions Configuration', () => {
@@ -113,8 +113,14 @@ describe('ComputeStack', () => {
         });
     });
 
-    test('creates log retention custom resources for Lambda functions', () => {
-      template.resourceCountIs('Custom::LogRetention', 4);
+    test('provisions dedicated log groups with 30-day retention', () => {
+      const logGroups = template.findResources('AWS::Logs::LogGroup');
+      expect(Object.values(logGroups)).toHaveLength(4);
+
+      Object.values(logGroups).forEach((resource) => {
+        expect(resource.Properties?.RetentionInDays).toBe(30);
+        expect(resource.DeletionPolicy).toBe('Delete');
+      });
     });
   });
 

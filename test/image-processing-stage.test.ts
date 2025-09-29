@@ -5,11 +5,11 @@ import { DEFAULT_CONFIG } from '../lib/types';
 
 describe('ImageProcessingStage', () => {
   beforeEach(() => {
-    process.env.CDK_DISABLE_POWETOOLS_BUNDLING = 'true';
+  process.env.CDK_DISABLE_POWERTOOLS_BUNDLING = 'true';
   });
 
   afterEach(() => {
-    delete process.env.CDK_DISABLE_POWETOOLS_BUNDLING;
+  delete process.env.CDK_DISABLE_POWERTOOLS_BUNDLING;
   });
 
   test('composes all infrastructure stacks', () => {

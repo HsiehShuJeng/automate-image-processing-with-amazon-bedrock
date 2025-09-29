@@ -1,11 +1,15 @@
 #!/usr/bin/env node
 
 /**
- * Compute Stack for the Image Processing application.
- * Contains Lambda functions for Step Functions workflow with DynamoDB stream trigger.
+ * Provision compute resources for the image processing workflow.
+ *
+ * This stack wires together the Lambda functions, Powertools layer, and
+ * permissions required to orchestrate the Step Functions state machine. It
+ * mirrors the behaviour of the original SAM implementation while applying CDK
+ * best practices for log management, tracing, and dependency layering.
  */
 
-import { Duration, Size, Stack } from 'aws-cdk-lib';
+import { Duration, RemovalPolicy, Size, Stack } from 'aws-cdk-lib';
 import * as iam from 'aws-cdk-lib/aws-iam';
 import * as lambda from 'aws-cdk-lib/aws-lambda';
 import * as lambdaEventSources from 'aws-cdk-lib/aws-lambda-event-sources';
@@ -25,7 +29,7 @@ export class ComputeStack extends Stack {
     super(scope, id, props);
 
     const powertoolsLayerSourcePath = join(__dirname, '..', '..', 'layers', 'powertools');
-    const bundlingDisabled = process.env.CDK_DISABLE_POWETOOLS_BUNDLING === 'true';
+    const bundlingDisabled = process.env.CDK_DISABLE_POWERTOOLS_BUNDLING === 'true';
     const powertoolsLayerCode = lambda.Code.fromAsset(
       powertoolsLayerSourcePath,
       bundlingDisabled
@@ -80,6 +84,7 @@ export class ComputeStack extends Stack {
     });
 
     // Create StartImageProcessingWorkflowFunction with DynamoDB stream trigger
+    const startWorkflowLogGroup = createLambdaLogGroup(this, 'StartWorkflowLogGroup');
     const startWorkflowFunction = new lambda.Function(this, 'StartImageProcessingWorkflowFunction', {
       runtime: lambda.Runtime.PYTHON_3_13,
       handler: 'app.lambda_handler',
@@ -87,7 +92,7 @@ export class ComputeStack extends Stack {
       timeout: Duration.seconds(120), // Specific timeout per SAM template
       memorySize: 128,
       tracing: lambda.Tracing.ACTIVE,
-      logRetention: logs.RetentionDays.ONE_MONTH,
+      logGroup: startWorkflowLogGroup,
       layers: [powertoolsLayer, commonUtilitiesLayer],
       environment: {
         STATE_MACHINE_IMAGE_PROCESSING_NAME: stateMachineName,
@@ -116,6 +121,7 @@ export class ComputeStack extends Stack {
     );
 
     // Create BuildBedrockRequestFunction with 900s timeout per SAM global setting
+    const buildRequestLogGroup = createLambdaLogGroup(this, 'BuildRequestLogGroup');
     const buildRequestFunction = new lambda.Function(this, 'BuildBedrockRequestFunction', {
       runtime: lambda.Runtime.PYTHON_3_13,
       handler: 'app.lambda_handler',
@@ -124,7 +130,7 @@ export class ComputeStack extends Stack {
       memorySize: 512,
       ephemeralStorageSize: Size.mebibytes(1024),
       tracing: lambda.Tracing.ACTIVE,
-      logRetention: logs.RetentionDays.ONE_MONTH,
+      logGroup: buildRequestLogGroup,
       layers: [powertoolsLayer, commonUtilitiesLayer],
       environment: {
         POWERTOOLS_SERVICE_NAME: 'image-processing',
@@ -133,6 +139,7 @@ export class ComputeStack extends Stack {
     });
 
     // Create ParseBedrockResponseFunction with 900s timeout per SAM global setting
+    const parseResponseLogGroup = createLambdaLogGroup(this, 'ParseResponseLogGroup');
     const parseResponseFunction = new lambda.Function(this, 'ParseBedrockResponseFunction', {
       runtime: lambda.Runtime.PYTHON_3_13,
       handler: 'app.lambda_handler',
@@ -141,7 +148,7 @@ export class ComputeStack extends Stack {
       memorySize: 512,
       ephemeralStorageSize: Size.mebibytes(1024),
       tracing: lambda.Tracing.ACTIVE,
-      logRetention: logs.RetentionDays.ONE_MONTH,
+      logGroup: parseResponseLogGroup,
       layers: [powertoolsLayer, commonUtilitiesLayer],
       environment: {
         POWERTOOLS_SERVICE_NAME: 'image-processing',
@@ -150,6 +157,7 @@ export class ComputeStack extends Stack {
     });
 
     // Create GenerateStatusReportFunction with 900s timeout per SAM global setting
+    const statusReportLogGroup = createLambdaLogGroup(this, 'StatusReportLogGroup');
     const statusReportFunction = new lambda.Function(this, 'GenerateStatusReportFunction', {
       runtime: lambda.Runtime.PYTHON_3_13,
       handler: 'app.lambda_handler',
@@ -157,7 +165,7 @@ export class ComputeStack extends Stack {
       timeout: Duration.seconds(900), // Global timeout per SAM template
       memorySize: 128,
       tracing: lambda.Tracing.ACTIVE,
-      logRetention: logs.RetentionDays.ONE_MONTH,
+      logGroup: statusReportLogGroup,
       layers: [powertoolsLayer, commonUtilitiesLayer],
       environment: {
         STATUS_TABLE: props.statusTable.tableName,
@@ -193,4 +201,18 @@ export class ComputeStack extends Stack {
       statusReportFunction
     };
   }
+}
+
+/**
+ * Creates a Lambda log group with the project-wide retention policy applied.
+ *
+ * @param scope construct scope used for parenting the log group.
+ * @param id logical identifier for the log group within the stack.
+ * @returns a log group configured for 30-day retention and stack cleanup.
+ */
+function createLambdaLogGroup(scope: Construct, id: string): logs.LogGroup {
+  return new logs.LogGroup(scope, id, {
+    retention: logs.RetentionDays.ONE_MONTH,
+    removalPolicy: RemovalPolicy.DESTROY
+  });
 }
