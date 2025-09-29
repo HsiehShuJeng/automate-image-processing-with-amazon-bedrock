@@ -41,7 +41,7 @@ export const DEFAULT_CONFIG: ImageProcessingConfig = {
   bedrockModelId: 'amazon.titan-image-generator-v1',
   maxConcurrency: 10,
   snsTopicName: 'notification-topic',
-  notificationEmail: '', // Must be provided at deployment
+  notificationEmail: 'fantasticSie@hotmail.com', // Must be provided at deployment
   statusReportUrlExpiration: 86400, // 24 hours in seconds
   imageProcessingWorkflowName: 'image-processing-workflow'
 };
