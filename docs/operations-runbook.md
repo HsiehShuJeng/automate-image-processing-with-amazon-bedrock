@@ -15,6 +15,8 @@
 - Execute `npx cdk synth` and review `cdk.out/` templates for unexpected changes.
 - Validate CloudWatch dashboard widgets render data once traffic flows.
 - Confirm SNS email subscriptions receive alarm notifications (if configured).
+- Follow the end-to-end workflow in `docs/testing-validation.md` to exercise Step Functions.
+- Verify API parity with the Streamlit UI using `docs/api-integration-guide.md`.
 
 ## Incident Response
 - Review CloudWatch alarms in the Monitoring stack dashboard (`ImageProcessing*-observability`).
@@ -33,4 +35,5 @@
 - Platform Operations: `platform-ops@example.com`
 
 ## Change Log
+- 2025-10-25: Updated with cross-reference to configuration/API guides and latest validation workflow.
 - 2024-XX-XX: Added Monitoring stack alarms, Powertools instrumentation, and resource policies for least privilege.

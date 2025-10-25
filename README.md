@@ -27,3 +27,12 @@ All AWS services will be deployed in the Asia Pacific (Tokyo) region for optimal
 - **Service Availability**: Full service coverage in ap-northeast-1
 - **Cross-Region Optimization**: Only Bedrock calls cross-region, minimizing latency impact
 - **Compliance**: Data residency in Asia Pacific region while leveraging US-based AI services
+
+## Project Documentation
+- `docs/sam-to-cdk-migration.md` – Historical context and migration mapping from SAM to CDK.
+- `docs/configuration-reference.md` – Explanation of configuration parameters, environment descriptors, and safe update guidance.
+- `docs/api-integration-guide.md` – REST endpoint contracts and Streamlit UI compatibility notes.
+- `docs/operations-runbook.md` – Deployment workflow, troubleshooting steps, and rollback procedures.
+- `docs/testing-validation.md` – Automated and manual validation workflows (includes Step 28 results).
+- `docs/security-controls.md` – IAM and security posture decisions.
+- `docs/production-checklist.md` – Readiness checklist for production launches.
