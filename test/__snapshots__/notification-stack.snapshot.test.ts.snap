@@ -69,6 +69,59 @@ exports[`NotificationStack CloudFormation Template matches expected structure 1`
       "Type": "AWS::KMS::Key",
       "UpdateReplacePolicy": "Delete",
     },
+    "NotificationTopicPolicyF935982E": {
+      "Properties": {
+        "PolicyDocument": {
+          "Statement": [
+            {
+              "Action": "sns:Publish",
+              "Effect": "Allow",
+              "Principal": {
+                "AWS": {
+                  "Fn::Join": [
+                    "",
+                    [
+                      "arn:",
+                      {
+                        "Ref": "AWS::Partition",
+                      },
+                      ":iam::123456789012:root",
+                    ],
+                  ],
+                },
+              },
+              "Resource": {
+                "Ref": "NotificationTopicEB7A0DF1",
+              },
+              "Sid": "AllowAccountPublish",
+            },
+            {
+              "Action": "sns:Publish",
+              "Condition": {
+                "Bool": {
+                  "aws:SecureTransport": "false",
+                },
+              },
+              "Effect": "Deny",
+              "Principal": {
+                "AWS": "*",
+              },
+              "Resource": {
+                "Ref": "NotificationTopicEB7A0DF1",
+              },
+              "Sid": "DenyInsecureTransport",
+            },
+          ],
+          "Version": "2012-10-17",
+        },
+        "Topics": [
+          {
+            "Ref": "NotificationTopicEB7A0DF1",
+          },
+        ],
+      },
+      "Type": "AWS::SNS::TopicPolicy",
+    },
     "NotificationTopicalertsexamplecom8230D76A": {
       "Properties": {
         "Endpoint": "alerts@example.com",

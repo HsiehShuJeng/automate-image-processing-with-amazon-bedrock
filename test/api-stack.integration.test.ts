@@ -96,13 +96,19 @@ describe('ApiStack Integration Tests', () => {
     });
 
     test('DynamoDB integration has VTL request template', () => {
-      template.hasResourceProperties('AWS::ApiGateway::Method', {
-        Integration: {
-          RequestTemplates: {
-            'application/json': Match.stringLikeRegexp('.*TableName.*ImagesTable.*')
-          }
-        }
-      });
+      const resources = template.toJSON().Resources;
+      const dynamoMethod = Object.values(resources).find((resource: any) =>
+        resource.Type === 'AWS::ApiGateway::Method' &&
+        JSON.stringify(resource.Properties?.Integration ?? {}).includes('dynamodb:action/PutItem')
+      ) as any;
+
+      expect(dynamoMethod).toBeDefined();
+      const requestTemplate = dynamoMethod.Properties.Integration.RequestTemplates?.['application/json'];
+      expect(requestTemplate).toBeDefined();
+
+      const serializedTemplate = JSON.stringify(requestTemplate);
+      expect(serializedTemplate).toContain('TableName');
+      expect(serializedTemplate).toContain('ImagesTable');
     });
   });
 

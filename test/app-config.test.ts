@@ -51,7 +51,9 @@ describe('app-config utilities', () => {
         imageProcessingApp: {
           environments: {
             dev: {
-              region: 'ap-northeast-1'
+              config: {
+                notificationEmail: 'invalid-email'
+              }
             }
           }
         }

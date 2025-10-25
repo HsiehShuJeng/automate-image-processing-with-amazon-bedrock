@@ -39,7 +39,7 @@ exports[`StorageStack CloudFormation Template matches expected CloudFormation te
       "Properties": {
         "Code": {
           "S3Bucket": "cdk-hnb659fds-assets-123456789012-ap-northeast-1",
-          "S3Key": "4bbf54f7ebdde55489aced5c6194a24cc50f226cb1b5bc3a006dfc954e329316.zip",
+          "S3Key": "2ae8f914c1489d48f5583d64f967c153178446af897e853125ec63aa26bd2a4e.zip",
         },
         "Description": {
           "Fn::Join": [

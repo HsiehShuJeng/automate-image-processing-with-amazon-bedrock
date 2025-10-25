@@ -134,13 +134,6 @@ exports[`OrchestrationStack snapshot matches synthesized template snapshot 1`] =
         "PolicyDocument": {
           "Statement": [
             {
-              "Action": "states:StartExecution",
-              "Effect": "Allow",
-              "Resource": {
-                "Ref": "ImageProcessingWorkflowDA724ABE",
-              },
-            },
-            {
               "Action": [
                 "states:DescribeExecution",
                 "states:StopExecution",
@@ -150,10 +143,55 @@ exports[`OrchestrationStack snapshot matches synthesized template snapshot 1`] =
                 "Fn::Join": [
                   "",
                   [
+                    "arn:",
                     {
-                      "Ref": "ImageProcessingWorkflowDA724ABE",
+                      "Ref": "AWS::Partition",
+                    },
+                    ":states:us-east-1:123456789012:execution:",
+                    {
+                      "Fn::Select": [
+                        6,
+                        {
+                          "Fn::Split": [
+                            ":",
+                            {
+                              "Ref": "ImageProcessingWorkflowDA724ABE",
+                            },
+                          ],
+                        },
+                      ],
                     },
                     ":*",
+                  ],
+                ],
+              },
+            },
+            {
+              "Action": "states:RedriveExecution",
+              "Effect": "Allow",
+              "Resource": {
+                "Fn::Join": [
+                  "",
+                  [
+                    "arn:",
+                    {
+                      "Ref": "AWS::Partition",
+                    },
+                    ":states:us-east-1:123456789012:execution:",
+                    {
+                      "Fn::Select": [
+                        6,
+                        {
+                          "Fn::Split": [
+                            ":",
+                            {
+                              "Ref": "ImageProcessingWorkflowDA724ABE",
+                            },
+                          ],
+                        },
+                      ],
+                    },
+                    "/Map:*",
                   ],
                 ],
               },

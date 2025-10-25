@@ -122,6 +122,14 @@ exports[`ApiStack CloudFormation Template matches expected CloudFormation templa
       },
       "Type": "AWS::IAM::Role",
     },
+    "ApiAccessLogsE9DF007D": {
+      "DeletionPolicy": "Retain",
+      "Properties": {
+        "RetentionInDays": 30,
+      },
+      "Type": "AWS::Logs::LogGroup",
+      "UpdateReplacePolicy": "Retain",
+    },
     "ApiAccountA18C9B29": {
       "DeletionPolicy": "Retain",
       "DependsOn": [
@@ -171,7 +179,7 @@ exports[`ApiStack CloudFormation Template matches expected CloudFormation templa
       "Type": "AWS::IAM::Role",
       "UpdateReplacePolicy": "Retain",
     },
-    "ApiDeploymentB17BE62Dd37f97cc4e5a77232ffd2b49e6ed2599": {
+    "ApiDeploymentB17BE62Dd956935cbdc24297c2bb947d4e7c52db": {
       "DependsOn": [
         "ApidetectLabelsOPTIONSBE732498",
         "ApidetectLabelsPOST1ABEB4B2",
@@ -197,13 +205,39 @@ exports[`ApiStack CloudFormation Template matches expected CloudFormation templa
         "ApiAccountA18C9B29",
       ],
       "Properties": {
-        "DeploymentId": {
-          "Ref": "ApiDeploymentB17BE62Dd37f97cc4e5a77232ffd2b49e6ed2599",
+        "AccessLogSetting": {
+          "DestinationArn": {
+            "Fn::GetAtt": [
+              "ApiAccessLogsE9DF007D",
+              "Arn",
+            ],
+          },
+          "Format": "{"requestId":"$context.requestId","ip":"$context.identity.sourceIp","user":"$context.identity.user","caller":"$context.identity.caller","requestTime":"$context.requestTime","httpMethod":"$context.httpMethod","resourcePath":"$context.resourcePath","status":"$context.status","protocol":"$context.protocol","responseLength":"$context.responseLength"}",
         },
+        "DeploymentId": {
+          "Ref": "ApiDeploymentB17BE62Dd956935cbdc24297c2bb947d4e7c52db",
+        },
+        "MethodSettings": [
+          {
+            "DataTraceEnabled": false,
+            "HttpMethod": "*",
+            "LoggingLevel": "INFO",
+            "MetricsEnabled": true,
+            "ResourcePath": "/*",
+          },
+          {
+            "DataTraceEnabled": false,
+            "HttpMethod": "*",
+            "ResourcePath": "/*",
+            "ThrottlingBurstLimit": 50,
+            "ThrottlingRateLimit": 100,
+          },
+        ],
         "RestApiId": {
           "Ref": "ApiF70053CD",
         },
         "StageName": "prod",
+        "TracingEnabled": true,
       },
       "Type": "AWS::ApiGateway::Stage",
     },
@@ -445,9 +479,17 @@ exports[`ApiStack CloudFormation Template matches expected CloudFormation templa
             "integration.request.header.X-Amz-Target": "'DynamoDB_20120810.PutItem'",
           },
           "RequestTemplates": {
-            "application/json": "#set($inputRoot = $input.path('$'))
+            "application/json": {
+              "Fn::Join": [
+                "",
+                [
+                  "#set($inputRoot = $input.path('$'))
 {
-  "TableName": "ImagesTable",
+  "TableName": "",
+                  {
+                    "Fn::ImportValue": "TestStorageStack:ExportsOutputRefImagesTable39278AD99BE1CBB7",
+                  },
+                  "",
   "Item": {
     "Id": { "S": "$inputRoot.Id" },
     "ImageS3Prefix": { "S": "$inputRoot.ImageS3Prefix" },
@@ -468,6 +510,9 @@ exports[`ApiStack CloudFormation Template matches expected CloudFormation templa
     }
   }
 }",
+                ],
+              ],
+            },
           },
           "Type": "AWS",
           "Uri": {

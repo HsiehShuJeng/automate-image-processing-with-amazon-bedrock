@@ -67,6 +67,7 @@ export class ComputeStack extends Stack {
       layers: [powertoolsLayer, commonUtilitiesLayer],
       environment: {
         STATE_MACHINE_IMAGE_PROCESSING_NAME: stateMachineName,
+        STATE_MACHINE_IMAGE_PROCESSING_ARN: stateMachineArn,
         INPUT_BUCKET: props.bucket.bucketName,
         IMAGE_PREFIX: props.config.imagePrefix,
         GENERATED_IMAGE_PREFIX: props.config.generatedImagePrefix,
